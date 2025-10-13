@@ -29,6 +29,9 @@
   .small{font-size:12px;color:var(--muted)}
 .toggler{border:1px solid var(--border); background:var(--panel2);}
   .toggler.active{background:#243226;border-color:#2f6b4f;color:#9ee2b9;}
+#diagbar{position:sticky;top:48px;z-index:5;padding:6px 14px;background:#0d1218;border-bottom:1px solid #0f1a22;color:#9ad4ff;font:12px/1.3 system-ui}
+  #diagbar .label{opacity:.8;margin-right:8px;color:#7fbaf0}
+  .toggler{border:1px solid var(--border); background:var(--panel2);} .toggler.active{background:#243226;border-color:#2f6b4f;color:#9ee2b9;}
 </style>
 </head>
 <body>
@@ -37,6 +40,7 @@
   <span class="badge">CSV ➜ Cards ➜ PNG/Sheet</span>
   <span class="badge" id="err">⚠</span>
 </header>
+<div id="diagbar"><span class="label">Diagnostics:</span><span id="diag">(ready)</span></div>
 <main>
   <section class="card">
     <h2>Data</h2>
@@ -163,7 +167,7 @@
 // ===== Error surfacing =====
 const $err = ()=>document.getElementById('err');
 window.addEventListener('error', e=>{ const b=$err(); if(b){ b.style.display='inline-block'; b.textContent='⚠ '+(e.message||'Script error'); } });
-window.addEventListener('unhandledrejection', e=>{ const b=$err(); if(b){ const msg = (e.reason && e.reason.message) ? e.reason.message : (''+e.reason); b.style.display='inline-block'; b.textContent='⚠ '+msg; } });
+window.addEventListener('unhandledrejection', e=>{ const b=$err(); if(b){ const msg = (e.reason && e.reason.message) ? e.reason.message : (''+e.reason); b.style.display='inline-block'; b.textContent='⚠ '+msg; } setDiag('Error: '+(e.reason&&e.reason.message? e.reason.message : e.reason)); }); if(b){ const msg = (e.reason && e.reason.message) ? e.reason.message : (''+e.reason); b.style.display='inline-block'; b.textContent='⚠ '+msg; } });
 
 // ===== State =====
 const state={
@@ -327,7 +331,7 @@ async function buildSheet(cards){ const cols=10, rows=7, S=4096; $sheet.width=S;
 function makePrompt(c){ const name=c[state.map.name]||''; const faction=(''+(c[state.map.faction]||'')).toLowerCase(); const type=c[state.map.type]||''; const flavor=c[state.map.flavor]||''; const style='gritty dark fantasy, painterly brushwork, MTG key art vibe, dramatic lighting, high detail, no text, no borders'; const palette=faction.includes('flame')?'ember orange, soot black':faction.includes('blood')?'deep crimson, iron, dried gore':faction.includes('ash')?'bone white, pale gray, dust':'muted earth'; return {name, prompt:`${name} — ${type}. ${flavor}. ${style}. palette: ${palette}.`}; }
 
 // ===== Wiring =====
-function setDiag(msg){ const d=el('diag'); if(d) d.textContent = msg; }
+function setDiag(msg){ const d=document.getElementById('diag'); if(d) d.textContent = msg; const bar=document.getElementById('diagbar'); if(bar && !d){ bar.innerHTML = '<span class="label">Diagnostics:</span><span id="diag"></span>'; document.getElementById('diag').textContent = msg; } }
 
 async function onImportCSV(){ try{
   const pickIfNeeded = async (cb)=>{
