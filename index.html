@@ -53,8 +53,10 @@
         <button id="loadCSV" class="primary">Import CSV</button>
         <button id="previewCSV">Preview First Card</button>
         <button id="importImages">Mass Import Images</button>
+        <label class="badge"><input id="overwriteLocal" type="checkbox"/> Prefer local images (override CSV if not a full URL)</label>
         <input id="imgFiles" type="file" accept="image/*" multiple webkitdirectory directory style="display:none" />
       </div>
+      <div id="importInfo" class="small" style="margin-top:6px;color:#c9c4be"></div>
       <div class="row" style="margin-top:8px">
         <div class="badge">Auto-map headers: Name, Faction, Type, Cost, ATK, HP, MOV, Rules, Flavor, Image</div>
       </div>
@@ -172,7 +174,7 @@ const $sheet=el('sheetCanvas'); const $sctx=$sheet.getContext('2d');
 
 // ===== Utils =====
 function parseCSV(text){ const rows=[]; let cur='',row=[],inQ=false; for(let i=0;i<text.length;i++){ const ch=text[i], nx=text[i+1]; if(inQ){ if(ch==='"'&&nx==='"'){cur+='"';i++;} else if(ch==='"'){inQ=false;} else cur+=ch; } else { if(ch==='"') inQ=true; else if(ch===','){row.push(cur);cur='';} else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur='';} else if(ch==='\r'){} else cur+=ch; } } if(cur.length||row.length){ row.push(cur); rows.push(row);} const headers=(rows.shift()||[]).map(h=>h.trim()); if(!headers.length) return []; return rows.filter(r=>r.length && r.some(x=>x!=='')) .map(r=>Object.fromEntries(headers.map((h,i)=>[h,(r[i]??'').trim()]))); }
-const loadImage=src=>new Promise((res,rej)=>{ const img=new Image(); img.crossOrigin='anonymous'; img.onload=()=>res(img); img.onerror=()=>rej(new Error('Image failed: '+src)); img.src=src; });
+const loadImage=src=>new Promise((res,rej)=>{ const img=new Image(); if(/^https?:/i.test(src)) img.crossOrigin='anonymous'; img.onload=()=>res(img); img.onerror=()=>rej(new Error('Image failed: '+src)); img.src=src; });
 function fitMode(iw,ih,ow,oh,mode){ const ir=iw/ih, or=ow/oh; let w,h; if(mode==='cover'? ir<or : ir>or){ w=ow; h=ow/ir; } else { h=oh; w=oh*ir; } const x=(ow-w)/2, y=(oh-h)/2; return {x,y,w,h}; }
 function factionColors(f){ const x=(f||'').toLowerCase(); if(x.includes('flame')) return {base:'#26160f',frame:'#b8571b',accent:'#ffb37a'}; if(x.includes('blood')) return {base:'#1c1111',frame:'#8a1d1d',accent:'#ff8a8a'}; if(x.includes('ash')) return {base:'#161616',frame:'#7c7c7c',accent:'#d9d4c5'}; return {base:'#151517',frame:'#555',accent:'#ddd'}; }
 function truncToWidth(text,max,ctx){ let s=''+(text||''); while(ctx.measureText(s).width>max && s.length>3){ s=s.slice(0,-4)+'…'; } return s; }
@@ -292,6 +294,27 @@ function buildMapUI(){ const keys=Object.keys(state.map); const sample=state.car
 async function importCSV(previewOnly=false){ const file=el('csvFile').files[0]; if(!file){ alert('Choose a CSV file first.'); return; } const txt=await file.text(); const cards=parseCSV(txt); if(!cards.length){ alert('CSV parsed but found 0 rows.'); return; } const H=Object.keys(cards[0]||{}); const auto=name=> H.find(h=>h.toLowerCase()===name.toLowerCase()); state.map={ id:auto('ID')||auto('CardID')||auto('Code')||auto('Name')||'ID', name:auto('Name')||'Name', faction:auto('Faction')||'Faction', type:auto('Type')||'Type', cost:auto('Cost')||'Cost', atk:auto('ATK')||'ATK', hp:auto('HP')||'HP', mov:auto('MOV')||auto('Move')||auto('Movement')||'MOV', rules:auto('Rules')||'Rules', flavor:auto('Flavor')||'Flavor', image:auto('Image')||auto('Art')||auto('Img')||'Image' };
   state.cards=cards; state.idx=0; buildMapUI(); await renderCard(state.cards[0]); if(!previewOnly) await buildSheet(state.cards); }
 function normKey(s){ return (''+(s||'')).toLowerCase().replace(/\.(png|jpe?g|webp|gif)$/,'').replace(/[^a-z0-9]+/g,'').trim(); }
+function isURL(s){ return /^https?:\/\//i.test(''+s) || /^blob:/.test(''+s); }
+async function attachLocalImagesV2(files){
+  if(!state.cards.length){ alert('Import a CSV first.'); return; }
+  const preferLocal = !!document.getElementById('overwriteLocal')?.checked;
+  const map=new Map();
+  for(const f of files){ const url=URL.createObjectURL(f); (window._importedImageURLs ||= []).push(url); map.set(normKey(f.name),url); }
+  let matched=0, skipped=0; const missed=[];
+  for(const c of state.cards){
+    const cur=(c[state.map.image]||'').trim();
+    const idKey=normKey(c[state.map.id]); const nameKey=normKey(c[state.map.name]);
+    const hit=map.get(idKey)||map.get(nameKey);
+    if(!hit){ missed.push(nameKey||idKey); continue; }
+    const curIsURL = isURL(cur);
+    const shouldReplace = !cur || preferLocal || !curIsURL; // blank, user opted in, or CSV had a bare filename
+    if(shouldReplace){ c[state.map.image]=hit; matched++; } else { skipped++; }
+  }
+  const info = document.getElementById('importInfo');
+  if(info){ info.textContent = `Local images selected: ${files.length}. Attached ${matched}${skipped?`, skipped ${skipped} (kept CSV)`:''}${missed.length?`, no match for ${missed.length}.`:''}`; }
+  if(!matched && missed.length){ alert('No images attached. Filenames must match ID or Name (ignores spaces/punctuation).'); }
+  if(state.cards.length) await renderCard(state.cards[state.idx]);
+}
 let importedImageURLs=[];
 async function attachLocalImages(files){ if(!state.cards.length){ alert('Import a CSV first.'); return; } const map=new Map(); for(const f of files){ const url=URL.createObjectURL(f); importedImageURLs.push(url); map.set(normKey(f.name),url); } let matched=0; for(const c of state.cards){ const cur=(c[state.map.image]||'').trim(); if(cur) continue; const idKey=normKey(c[state.map.id]); const nameKey=normKey(c[state.map.name]); const hit=map.get(idKey)||map.get(nameKey); if(hit){ c[state.map.image]=hit; matched++; } } alert(matched?`Attached ${matched} images by ID/Name match.`:'No local images matched by ID or Name.'); await renderCard(state.cards[state.idx]); }
 
@@ -304,7 +327,7 @@ el('csvFile').addEventListener('change', async()=>{ try{ await importCSV(true); 
 el('loadCSV').addEventListener('click', async()=>{ try{ await importCSV(false); }catch(e){ console.error(e); alert('Import CSV failed: '+e.message); } });
 el('previewCSV').addEventListener('click', async()=>{ try{ await importCSV(true); }catch(e){ console.error(e); alert('Preview failed: '+e.message); } });
 el('importImages').addEventListener('click',()=>{ try{ el('imgFiles').click(); }catch(e){ console.error(e); alert('Image picker failed to open.'); } });
-el('imgFiles').addEventListener('change', async e=>{ try{ const files=[...e.target.files]; if(!files.length) return; await attachLocalImages(files); }catch(e2){ console.error(e2); alert('Failed to import images: '+e2.message); } });
+el('imgFiles').addEventListener('change', async e=>{ try{ const files=[...e.target.files]; if(!files.length) return; await attachLocalImagesV2(files); }catch(e2){ console.error(e2); alert('Failed to import images: '+e2.message); } }); alert('Failed to import images: '+e2.message); } });
 
 ['outSize','palette','border','radius','frameOpacity','bgUrl','padX','artTop','artHeight','artFit','tTitleSize','tTitleX','tTitleY','tLineSize','tLineX','tLineY','tRulesSize','tRulesX','tRulesTop','tRulesWidth','tRulesHeight','tFlavorSize','tFlavorX','tFlavorTop','tFlavorWidth','tFlavorHeight','hpSize','hpX','hpY','hpW','hpH','movSize','movX','movY','movW','movH','watermark'].forEach(id=>{ const n=el(id); if(n) n.addEventListener('input',()=>{ if(state.cards.length) renderCard(state.cards[state.idx]); }); });
 
