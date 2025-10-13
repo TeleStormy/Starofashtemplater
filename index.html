@@ -52,13 +52,14 @@
         </div>
       </div>
       <div class="actions" style="margin-top:8px">
-        <button id="loadCSV" class="primary">Import CSV</button>
-        <button id="previewCSV">Preview First Card</button>
-        <button id="importImages">Mass Import Images</button>
+        <button id="loadCSV" class="primary" onclick="onImportCSV()">Import CSV</button>
+        <button id="previewCSV" onclick="onPreviewCSV()">Preview First Card</button>
+        <button id="importImages" onclick="onImportImages()">Mass Import Images</button>
         <label class="badge"><input id="overwriteLocal" type="checkbox"/> Prefer local images (override CSV if not a full URL)</label>
         <input id="imgFiles" type="file" accept="image/*" multiple webkitdirectory directory style="display:none" />
       </div>
       <div id="importInfo" class="small" style="margin-top:6px;color:#c9c4be"></div>
+      <div id="diag" class="small" style="margin-top:4px;color:#9ad4ff"></div>
       <div class="row" style="margin-top:8px">
         <div class="badge">Auto-map headers: Name, Faction, Type, Cost, ATK, HP, MOV, Rules, Flavor, Image</div>
       </div>
@@ -326,67 +327,51 @@ async function buildSheet(cards){ const cols=10, rows=7, S=4096; $sheet.width=S;
 function makePrompt(c){ const name=c[state.map.name]||''; const faction=(''+(c[state.map.faction]||'')).toLowerCase(); const type=c[state.map.type]||''; const flavor=c[state.map.flavor]||''; const style='gritty dark fantasy, painterly brushwork, MTG key art vibe, dramatic lighting, high detail, no text, no borders'; const palette=faction.includes('flame')?'ember orange, soot black':faction.includes('blood')?'deep crimson, iron, dried gore':faction.includes('ash')?'bone white, pale gray, dust':'muted earth'; return {name, prompt:`${name} — ${type}. ${flavor}. ${style}. palette: ${palette}.`}; }
 
 // ===== Wiring =====
-el('csvFile').addEventListener('change', async()=>{ try{ await importCSV(true); }catch(e){ console.error(e); alert('CSV preview failed: '+e.message); } });
-el('loadCSV').addEventListener('click', async()=>{
-  try{
-    const pickIfNeeded = async (cb)=>{
-      if(!(el('csvFile').files&&el('csvFile').files.length)){
-        const once = async()=>{ el('csvFile').removeEventListener('change', once); await cb(); };
-        el('csvFile').addEventListener('change', once);
-        el('csvFile').click();
-      } else { await cb(); }
-    };
-    await pickIfNeeded(()=>importCSV(false));
-  }catch(e){ console.error(e); alert('Import CSV failed: '+e.message); }
-}); }catch(e){ console.error(e); alert('Import CSV failed: '+e.message); } });
-el('previewCSV').addEventListener('click', async()=>{
-  try{
-    const pickIfNeeded = async (cb)=>{
-      if(!(el('csvFile').files&&el('csvFile').files.length)){
-        const once = async()=>{ el('csvFile').removeEventListener('change', once); await cb(); };
-        el('csvFile').addEventListener('change', once);
-        el('csvFile').click();
-      } else { await cb(); }
-    };
-    await pickIfNeeded(()=>importCSV(true));
-  }catch(e){ console.error(e); alert('Preview CSV failed: '+e.message); }
-}); }catch(e){ console.error(e); alert('Preview failed: '+e.message); } });
-el('importImages').addEventListener('click',()=>{
-  try{
-    const fileInput = el('imgFiles');
-    if(!fileInput) return alert('Missing hidden file input for images.');
-    fileInput.value=''; // reset so selecting same folder re-triggers change
-    fileInput.click();
-  }catch(e){ console.error(e); alert('Image picker failed to open.'); }
-}); }catch(e){ console.error(e); alert('Image picker failed to open.'); } });
-el('imgFiles').addEventListener('change', async e=>{ try{ const files=[...e.target.files]; if(!files.length) return; await attachLocalImagesV2(files); }catch(e2){ console.error(e2); alert('Failed to import images: '+e2.message); } }); alert('Failed to import images: '+e2.message); } });
+function setDiag(msg){ const d=el('diag'); if(d) d.textContent = msg; }
+
+async function onImportCSV(){ try{
+  const pickIfNeeded = async (cb)=>{
+    if(!(el('csvFile').files&&el('csvFile').files.length)){
+      await new Promise(res=>{ const once=async()=>{ el('csvFile').removeEventListener('change', once); await cb(); res(); }; el('csvFile').addEventListener('change', once); el('csvFile').click(); });
+    } else { await cb(); }
+  };
+  setDiag('Import CSV: starting…');
+  await pickIfNeeded(()=>importCSV(false));
+  setDiag('Import CSV: done. Rows='+state.cards.length);
+}catch(e){ console.error(e); alert('Import CSV failed: '+e.message); setDiag('Import CSV: error'); } }
+async function onPreviewCSV(){ try{
+  const pickIfNeeded = async (cb)=>{
+    if(!(el('csvFile').files&&el('csvFile').files.length)){
+      await new Promise(res=>{ const once=async()=>{ el('csvFile').removeEventListener('change', once); await cb(); res(); }; el('csvFile').addEventListener('change', once); el('csvFile').click(); });
+    } else { await cb(); }
+  };
+  setDiag('Preview CSV: starting…');
+  await pickIfNeeded(()=>importCSV(true));
+  setDiag('Preview CSV: rendered first row');
+}catch(e){ console.error(e); alert('Preview CSV failed: '+e.message); setDiag('Preview CSV: error'); } }
+function onImportImages(){ try{ const fileInput=el('imgFiles'); if(!fileInput){ alert('Missing image input'); return; } fileInput.value=''; fileInput.click(); setDiag('Image picker opened…'); }catch(e){ console.error(e); alert('Image picker failed to open.'); setDiag('Image picker error'); } }
+
+// Keep addEventListener too (redundant safety net)
+el('csvFile').addEventListener('change', async()=>{ try{ await importCSV(true); setDiag('CSV change: previewed'); }catch(e){ console.error(e); alert('CSV preview failed: '+e.message); setDiag('CSV change: error'); } });
+el('loadCSV').addEventListener('click', onImportCSV);
+el('previewCSV').addEventListener('click', onPreviewCSV);
+el('importImages').addEventListener('click', onImportImages);
+
+el('imgFiles').addEventListener('change', async e=>{ try{ const files=[...e.target.files]; if(!files.length){ setDiag('No images selected'); return; } await attachLocalImagesV2(files); setDiag('Images attached: '+files.length); }catch(e2){ console.error(e2); alert('Failed to import images: '+e2.message); setDiag('Image import error'); } });
 
 ['outSize','palette','border','radius','frameOpacity','bgUrl','padX','artTop','artHeight','artFit','tTitleSize','tTitleX','tTitleY','tLineSize','tLineX','tLineY','tRulesSize','tRulesX','tRulesTop','tRulesWidth','tRulesHeight','tFlavorSize','tFlavorX','tFlavorTop','tFlavorWidth','tFlavorHeight','hpSize','hpX','hpY','hpW','hpH','movSize','movX','movY','movW','movH','watermark'].forEach(id=>{ const n=el(id); if(n) n.addEventListener('input',()=>{ if(state.cards.length) renderCard(state.cards[state.idx]); }); });
 
 el('editMode').addEventListener('change',()=>{ const b=el('toggleEdit'); if(b){ b.classList.toggle('active', el('editMode').checked); b.textContent = el('editMode').checked ? '✥ Edit Mode: ON' : '✥ Edit Mode: OFF'; }
   if(state.cards.length) renderCard(state.cards[state.idx]); });
 
-// Clickable toggle button near the canvas
 el('toggleEdit').addEventListener('click',()=>{ const c=el('editMode'); c.checked=!c.checked; const b=el('toggleEdit'); b.classList.toggle('active', c.checked); b.textContent = c.checked ? '✥ Edit Mode: ON' : '✥ Edit Mode: OFF'; if(state.cards.length) renderCard(state.cards[state.idx]); });
-el('snap').addEventListener('change',()=>{});
 
-el('nextCard').addEventListener('click',()=>{ if(!state.cards.length) return; state.idx=(state.idx+1)%state.cards.length; renderCard(state.cards[state.idx]); });
-el('dlCard').addEventListener('click',()=>{ if(!state.cards.length) return; const a=document.createElement('a'); a.download=(state.cards[state.idx][state.map.name]||'card')+'.png'; a.href=$canvas.toDataURL('image/png'); a.click(); });
-el('buildSheet').addEventListener('click', async()=>{ try{ if(!state.cards.length){ alert('Import a CSV first.'); return; } await buildSheet(state.cards); }catch(e){ console.error(e); alert('Build sheet failed: '+e.message); } });
-el('dlSheet').addEventListener('click',()=>{ const a=document.createElement('a'); a.download='tts_sheet_10x7.png'; a.href=$sheet.toDataURL('image/png'); a.click(); });
+el('nextCard').addEventListener('click',()=>{ if(!state.cards.length){ setDiag('Next: no cards'); return; } state.idx=(state.idx+1)%state.cards.length; renderCard(state.cards[state.idx]); setDiag('Showing card '+(state.idx+1)); });
+el('dlCard').addEventListener('click',()=>{ if(!state.cards.length){ alert('No card rendered'); setDiag('Download card: no card'); return; } const a=document.createElement('a'); a.download=(state.cards[state.idx][state.map.name]||'card')+'.png'; a.href=$canvas.toDataURL('image/png'); a.click(); setDiag('Card downloaded'); });
+el('buildSheet').addEventListener('click', async()=>{ try{ if(!state.cards.length){ alert('Import a CSV first.'); setDiag('Build sheet: no cards'); return; } await buildSheet(state.cards); setDiag('Sheet built'); }catch(e){ console.error(e); alert('Build sheet failed: '+e.message); setDiag('Build sheet: error'); } });
+el('dlSheet').addEventListener('click',()=>{ const a=document.createElement('a'); a.download='tts_sheet_10x7.png'; a.href=$sheet.toDataURL('image/png'); a.click(); setDiag('Sheet downloaded'); });
 
-aSYNC_FRAME();
-function aSYNC_FRAME(){ const fFile=el('frameFile'), fUrl=el('frameUrl'), fAlpha=el('frameAlpha'), fUse=el('useFrame'), fAbove=el('frameAbove'), fClear=el('clearFrame');
-  if(!fFile) return; fFile.addEventListener('change', async e=>{ try{ const file=e.target.files[0]; if(!file) return; const url=URL.createObjectURL(file); const img=await loadImage(url); state.frame.img=img; state.frame.src=url; if(!fUse.checked) fUse.checked=true, state.frame.enabled=true; if(state.cards.length) renderCard(state.cards[state.idx]); }catch(err){ console.error(err); alert('Failed to load frame file.'); } });
-  fUrl.addEventListener('change', async()=>{ try{ const url=fUrl.value.trim(); if(!url) return; const img=await loadImage(url); state.frame.img=img; state.frame.src=url; if(!fUse.checked) fUse.checked=true, state.frame.enabled=true; if(state.cards.length) renderCard(state.cards[state.idx]); }catch(err){ console.error(err); alert('Failed to load frame URL.'); } });
-  fAlpha.addEventListener('input',()=>{ state.frame.alpha=Math.min(1,Math.max(0,+fAlpha.value||1)); if(state.cards.length) renderCard(state.cards[state.idx]); });
-  fUse.addEventListener('change',()=>{ state.frame.enabled=fUse.checked; if(state.cards.length) renderCard(state.cards[state.idx]); });
-  fAbove.addEventListener('change',()=>{ state.frame.above=fAbove.checked; if(state.cards.length) renderCard(state.cards[state.idx]); });
-  fClear.addEventListener('click',()=>{ state.frame={img:null,alpha:1,enabled:false,above:false,src:null}; fFile.value=''; fUrl.value=''; fAlpha.value='1'; fUse.checked=false; fAbove.checked=false; if(state.cards.length) renderCard(state.cards[state.idx]); });
-}
-
-// Prompts
-el('prompts').addEventListener('click',()=>{ if(!state.cards.length) return; const list=state.cards.map(c=>makePrompt(c)); el('promptBox').value=JSON.stringify(list,null,2); });
+el('prompts').addEventListener('click',()=>{ if(!state.cards.length){ setDiag('Prompts: no cards'); return; } const list=state.cards.map(c=>makePrompt(c)); el('promptBox').value=JSON.stringify(list,null,2); setDiag('Prompts generated'); }); el('promptBox').value=JSON.stringify(list,null,2); });
 
 </script>
 </body>
