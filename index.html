@@ -17,7 +17,7 @@
   header{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);position:sticky;top:0;background:linear-gradient(180deg, rgba(11,11,12,.98), rgba(11,11,12,.92))}
   header h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.4px}
   header .tag{padding:2px 8px;border-radius:999px;background:var(--panel);border:1px solid var(--border);font-size:12px;color:var(--muted)}
-  main{display:grid;grid-template-columns:340px 1fr; gap:14px; padding:14px; max-width:1600px; margin:0 auto}
+  main{display:grid;grid-template-columns:minmax(380px,520px) 1fr; align-items:start; gap:16px; padding:14px; max-width:1800px; margin:0 auto} 
   .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;overflow:hidden}
   .card h2{font-size:13px;margin:0;padding:12px 14px;border-bottom:1px solid var(--border);color:#d9d6d3;letter-spacing:.35px;text-transform:uppercase}
   .card .body{padding:12px}
@@ -27,7 +27,7 @@
     border-radius:10px; padding:10px 12px; outline:none; font:inherit;
   }
   textarea{min-height:70px;resize:vertical}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
   .actions{display:flex;flex-wrap:wrap;gap:8px}
   button{background:#232328;color:var(--text);border:1px solid var(--border);padding:9px 12px;border-radius:12px;cursor:pointer}
   button.primary{background:linear-gradient(180deg,#c74634,#9f2a1b);border-color:#7f1e13}
@@ -340,7 +340,7 @@ async function renderCard(card){
   // Title
   const name = (card[state.map.name]||'').toString();
   $ctx.fillStyle = '#f3efe8'; $ctx.font = `700 ${titleSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`; $ctx.textAlign='left';
-  $ctx.fillText(truncToWidth(name, W - (padX*2), $ctx), padX, titleY);
+  $ctx.fillText(truncToWidth(name, W - titleX - 32, $ctx), titleX, titleY);
 
   // Type • Cost • Stats
   const type = (card[state.map.type]||'').toString();
@@ -349,7 +349,7 @@ async function renderCard(card){
   const hp   = (card[state.map.hp]||'').toString();
   const line = [type, cost?`Cost ${cost}`:null, (atk||hp)?`${atk||''}${atk&&hp?'/':''}${hp||''}`:null].filter(Boolean).join(' • ');
   $ctx.fillStyle = '#d7d3cf'; $ctx.font = `600 ${lineSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`;
-  $ctx.fillText(truncToWidth(line, W - (padX*2), $ctx), padX, lineY);
+  $ctx.fillText(truncToWidth(line, W - lineX - 32, $ctx), lineX, lineY);
 
   // Art area
   const imgField = (card[state.map.image]||'').toString();
@@ -365,18 +365,18 @@ async function renderCard(card){
   // Rules text block
   const rules = (card[state.map.rules]||'').toString();
   $ctx.fillStyle = '#f1eee8'; $ctx.font = `500 ${rulesSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`; $ctx.textAlign='left';
-  multiline($ctx, rules, padX, rulesTop, W - padX*2, rulesSize*1.25);
+  multiline($ctx, rules, rulesX, rulesTop, rulesW, rulesSize*1.25);
 
   // Flavor text (italic, lighter)
   const flavor = (card[state.map.flavor]||'').toString();
   $ctx.fillStyle = '#c9c4be'; $ctx.font = `italic 500 ${flavorSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`;
-  multiline($ctx, flavor, padX, flavorTop, W - padX*2, flavorSize*1.3);
+  multiline($ctx, flavor, flavorX, flavorTop, flavorW, flavorSize*1.3);
 
   // HP badge
   if (hp){
-    const r = 28; const bx = W - hpPad - 120, by = H - hpPad - 56;
-    $ctx.shadowColor = colors.accent; $ctx.shadowBlur = 18; roundRect($ctx, bx, by, 120, 56, r); $ctx.fillStyle = '#151515cc'; $ctx.fill(); $ctx.shadowBlur = 0;
-    $ctx.fillStyle = colors.accent; $ctx.font = `800 ${hpSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`; $ctx.textAlign = 'center'; $ctx.fillText(hp, bx+60, by+40);
+    const rr=Math.min(hpH,hpW)/2.4; $ctx.shadowColor=colors.accent; $ctx.shadowBlur=18; roundRect($ctx, hpX, hpY, hpW, hpH, rr); $ctx.fillStyle='#151515cc'; $ctx.fill(); $ctx.shadowBlur=0;
+    $ctx.fillStyle=colors.accent; $ctx.font=`800 ${hpSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`; $ctx.textAlign='center'; $ctx.fillText(hp, hpX + hpW/2, hpY + hpH*0.72);
+  }px system-ui,Segoe UI,Roboto,Helvetica,Arial`; $ctx.textAlign = 'center'; $ctx.fillText(hp, bx+60, by+40);
   }
 
   // Watermark
@@ -454,38 +454,33 @@ el('mapGrid').addEventListener('change', e=>{
 });
 
 // ======= Edit mode & drag helpers =======
-el('editMode').addEventListener('change', (e)=>{ state.edit.enabled = e.target.checked; if (state.cards.length) renderCard(state.cards[state.idx]); });
-el('snap').addEventListener('change', (e)=>{ state.edit.snapping = e.target.checked; });
+el('editMode').addEventListener('change', ()=>{ state.edit.enabled = el('editMode').checked; if (state.cards.length) renderCard(state.cards[state.idx]); });
+el('snap').addEventListener('change', ()=>{ state.edit.snapping = el('snap').checked; });
 
 function currentPositions(){
   const W=$canvas.width, H=$canvas.height;
-  const padX= +el('padX').value||32;
-  const artTop= +el('artTop').value||210; const artHeight= +el('artHeight').value||480; const artW = W - 2*padX;
-  const titleY= +el('tTitleY').value||120; const lineY= +el('tLineY').value||168;
-  const rulesTop= +el('tRulesTop').value||740; const flavorTop= +el('tFlavorTop').value||960;
-  const hpPad= +el('hpPad').value||36; const hpW=120, hpH=56;
   return {
     W,H,
-    title:{x:padX, y:titleY},
-    line:{x:padX, y:lineY},
-    art:{x:padX, y:artTop, w:artW, h:artHeight},
-    rules:{x:padX, y:rulesTop, w:artW, h:Math.round(H*0.18)},
-    flavor:{x:padX, y:flavorTop, w:artW, h:Math.round(H*0.12)},
-    hp:{x: W - hpPad - hpW, y: H - hpPad - hpH, w:hpW, h:hpH}
+    title:{x:+el('tTitleX').value||32, y:+el('tTitleY').value||120},
+    line:{x:+el('tLineX').value||32, y:+el('tLineY').value||168},
+    art:{x:+el('padX').value||32, y:+el('artTop').value||210, w: W-2*(+el('padX').value||32), h:+el('artHeight').value||480},
+    rules:{x:+el('tRulesX').value||32, y:+el('tRulesTop').value||740, w:+el('tRulesWidth').value||W-64, h:+el('tRulesHeight').value||Math.round(H*0.18)},
+    flavor:{x:+el('tFlavorX').value||32, y:+el('tFlavorTop').value||960, w:+el('tFlavorWidth').value||W-64, h:+el('tFlavorHeight').value||Math.round(H*0.12)},
+    hp:{x:+el('hpX').value||W-36-120, y:+el('hpY').value||H-36-56, w:+el('hpW').value||120, h:+el('hpH').value||56}
   };
 }
 
 function drawOverlay(){
   const P=currentPositions(); const ctx=$ctx; const {W,H}=P; ctx.save();
-  // light grid
+  // grid
   ctx.globalAlpha=.3; ctx.strokeStyle='#ffffff22'; const step= Math.max(8, Math.floor(W/64)); for (let x=0;x<=W;x+=step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
   for (let y=0;y<=H;y+=step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
   ctx.globalAlpha=1;
   // boxes
-  const boxes=[['art',P.art],['rules',P.rules],['flavor',P.flavor]];
+  const boxes=[['art',P.art],['rules',P.rules],['flavor',P.flavor],['hp',P.hp]];
   boxes.forEach(([k,r])=>{ ctx.strokeStyle = state.edit.selected===k? '#7fd3a8':'#ffb84d'; ctx.lineWidth=2; ctx.strokeRect(r.x,r.y,r.w,r.h); drawHandles(ctx,r); label(ctx,r.x,r.y-6,k); });
-  // points (y‑only guides)
-  const pts=[['title',P.title],['line',P.line]]; pts.forEach(([k,p])=>{ ctx.fillStyle = state.edit.selected===k? '#7fd3a8':'#ff6b6b'; ctx.beginPath(); ctx.arc(p.x, p.y-10, 6, 0, Math.PI*2); ctx.fill(); label(ctx,p.x+8,p.y-16,k+" (Y)"); ctx.beginPath(); ctx.moveTo(0,p.y); ctx.lineTo(W,p.y); ctx.strokeStyle='#ffffff44'; ctx.stroke(); });
+  // points
+  const pts=[['title',P.title],['line',P.line]]; pts.forEach(([k,p])=>{ ctx.fillStyle = state.edit.selected===k? '#7fd3a8':'#ff6b6b'; ctx.beginPath(); ctx.arc(p.x, p.y-10, 6, 0, Math.PI*2); ctx.fill(); label(ctx,p.x+8,p.y-16,k); });
   ctx.restore();
 }
 function drawHandles(ctx,r){ const s=8; const corners=[[r.x,r.y],[r.x+r.w,r.y],[r.x,r.y+r.h],[r.x+r.w,r.y+r.h]]; ctx.fillStyle='#111'; ctx.strokeStyle='#aaa'; corners.forEach(([x,y])=>{ ctx.fillRect(x-s/2,y-s/2,s,s); ctx.strokeRect(x-s/2,y-s/2,s,s); }); }
@@ -494,11 +489,16 @@ function label(ctx,x,y,t){ ctx.save(); ctx.fillStyle='#ddd'; ctx.font='12px syst
 function hitTest(x,y){
   const P=currentPositions();
   const inRect=(r)=> x>=r.x && x<=r.x+r.w && y>=r.y && y<=r.y+r.h;
-  // art corners for resize and art body for move (vertical + padX horizontal)
-  const corners=(r)=> [['tl',r.x,r.y],['tr',r.x+r.w,r.y],['bl',r.x,r.y+r.h],['br',r.x+r.w,r.y+r.h]];
+  const corners=r=> [['tl',r.x,r.y],['tr',r.x+r.w,r.y],['bl',r.x,r.y+r.h],['br',r.x+r.w,r.y+r.h]];
   const near=(cx,cy)=> Math.abs(x-cx)<=10 && Math.abs(y-cy)<=10;
-  const testRect=(key,r)=>{ for (const [h,cx,cy] of corners(r)){ if (near(cx,cy)) return {type:'rect', key, handle:h}; } if (inRect(r)) return {type:'rect', key, handle:'move'}; return null; };
-  return testRect('art',P.art) || testRect('rules',P.rules) || testRect('flavor',P.flavor) || (Math.abs(y-P.title.y)<=10? {type:'line', key:'title'}: null) || (Math.abs(y-P.line.y)<=10? {type:'line', key:'line'}: null);
+  for (const [key,r] of Object.entries({art:P.art, rules:P.rules, flavor:P.flavor, hp:P.hp})){
+    for (const [h,cx,cy] of corners(r)){ if (near(cx,cy)) return {type:'rect', key, handle:h}; }
+    if (inRect(r)) return {type:'rect', key, handle:'move'};
+  }
+  for (const [key,p] of Object.entries({title:P.title, line:P.line})){
+    if ((x-p.x)**2 + (y-(p.y-10))**2 <= 9*9) return {type:'point', key};
+  }
+  return null;
 }
 
 function snapPx(v){ return state.edit.snapping ? Math.round(v/8)*8 : v; }
@@ -507,62 +507,59 @@ $canvas.addEventListener('mousedown',(e)=>{
   if (!state.edit.enabled) return; const r=$canvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top; const hit=hitTest(x,y); if (!hit) return; state.edit.dragging=true; state.edit.selected=hit.key; state.edit.handle=hit; state.edit.start={x,y}; state.edit.orig=currentPositions(); e.preventDefault();
 });
 $canvas.addEventListener('mousemove',(e)=>{
-  if (!state.edit.enabled || !state.edit.dragging) return; const r=$canvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top; const dx=x-state.edit.start.x, dy=y-state.edit.start.y; const P=state.edit.orig; const h=state.edit.handle;
-  if (h.type==='line'){
-    const ny = snapPx((h.key==='title'? P.title.y : P.line.y) + dy); el(h.key==='title'? 'tTitleY':'tLineY').value = ny; renderCard(state.cards[state.idx]); return;
-  }
-  if (h.type==='rect'){
-    const key=h.key; const base=P[key];
-    if (key==='art'){
-      if (h.handle==='move'){ el('artTop').value = snapPx(base.y + dy); el('padX').value = Math.max(0, snapPx(base.x + dx)); }
-      else {
-        if (h.handle==='tl' || h.handle==='bl'){ el('padX').value = Math.max(0, snapPx(base.x + dx)); }
-        if (h.handle==='tl' || h.handle==='tr'){ el('artTop').value = snapPx(base.y + dy); el('artHeight').value = Math.max(40, snapPx(base.h - dy)); }
-        if (h.handle==='bl' || h.handle==='br'){ el('artHeight').value = Math.max(40, snapPx(base.h + dy)); }
+  if (!state.edit.enabled || !state.edit.dragging) return; const r=$canvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top; const dx=x-state.edit.start.x, dy=y-state.edit.start.y; const P=state.edit.orig; const h=state.edit.handle; const set=(id,val)=>{ el(id).value = Math.max(0, snapPx(val)); };
+  if (h.type==='point'){
+    if (h.key==='title'){ set('tTitleX', P.title.x + dx); set('tTitleY', P.title.y + dy); }
+    else { set('tLineX', P.line.x + dx); set('tLineY', P.line.y + dy); }
+  } else if (h.type==='rect'){
+    const base = h.key==='art'? P.art : h.key==='rules'? P.rules : h.key==='flavor'? P.flavor : P.hp;
+    if (h.handle==='move'){
+      if (h.key==='art'){ set('padX', base.x + dx); set('artTop', base.y + dy); }
+      else if (h.key==='rules'){ set('tRulesX', base.x + dx); set('tRulesTop', base.y + dy); }
+      else if (h.key==='flavor'){ set('tFlavorX', base.x + dx); set('tFlavorTop', base.y + dy); }
+      else if (h.key==='hp'){ set('hpX', base.x + dx); set('hpY', base.y + dy); }
+    } else {
+      // resize from corners
+      const resizeRect=(kx,base)=>{
+        let nx=base.x, ny=base.y, nw=base.w, nh=base.h;
+        if (h.handle==='tl'){ nx=base.x+dx; ny=base.y+dy; nw=base.w-dx; nh=base.h-dy; }
+        if (h.handle==='tr'){ ny=base.y+dy; nw=base.w+dx; nh=base.h-dy; }
+        if (h.handle==='bl'){ nx=base.x+dx; nw=base.w-dx; nh=base.h+dy; }
+        if (h.handle==='br'){ nw=base.w+dx; nh=base.h+dy; }
+        return {nx,ny,nw,nh};
+      };
+      if (h.key==='art'){
+        if (h.handle==='tl' || h.handle==='bl') set('padX', base.x + dx);
+        if (h.handle==='tl' || h.handle==='tr'){ set('artTop', base.y + dy); set('artHeight', Math.max(40, base.h - dy)); }
+        if (h.handle==='bl' || h.handle==='br'){ set('artHeight', Math.max(40, base.h + dy)); }
+      } else if (h.key==='rules'){
+        const {nx,ny,nw,nh}=resizeRect('rules', base); set('tRulesX', nx); set('tRulesTop', ny); set('tRulesWidth', Math.max(40, nw)); set('tRulesHeight', Math.max(40, nh));
+      } else if (h.key==='flavor'){
+        const {nx,ny,nw,nh}=resizeRect('flavor', base); set('tFlavorX', nx); set('tFlavorTop', ny); set('tFlavorWidth', Math.max(40, nw)); set('tFlavorHeight', Math.max(40, nh));
+      } else if (h.key==='hp'){
+        const {nx,ny,nw,nh}=resizeRect('hp', base); set('hpX', nx); set('hpY', ny); set('hpW', Math.max(32, nw)); set('hpH', Math.max(24, nh));
       }
-    } else if (key==='rules' || key==='flavor'){
-      // y-only moves for text blocks
-      const inputId = key==='rules'? 'tRulesTop' : 'tFlavorTop'; el(inputId).value = snapPx(base.y + dy);
     }
-    renderCard(state.cards[state.idx]);
   }
+  renderCard(state.cards[state.idx]);
 });
 $canvas.addEventListener('mouseup', ()=>{ if (!state.edit.enabled) return; state.edit.dragging=false; });
-$canvas.addEventListener('mouseleave', ()=>{ if (!state.edit.enabled) return; state.edit.dragging=false; }); state.map[k] = sel.value || '';
-  });
-  if (state.cards.length) renderCard(state.cards[state.idx]);
-});
+$canvas.addEventListener('mouseleave', ()=>{ if (!state.edit.enabled) return; state.edit.dragging=false; });
 
-['outSize','palette','border','radius','frameOpacity','bgUrl','padX','padY','artTop','artHeight','artFit','tTitleSize','tTitleY','tLineSize','tLineY','tRulesSize','tRulesTop','tFlavorSize','tFlavorTop','hpSize','hpPad','watermark','limitWarChief']
+// Input bindings (including new X/W/H controls)
+['outSize','palette','border','radius','frameOpacity','bgUrl','padX','padY','artTop','artHeight','artFit','tTitleSize','tTitleX','tTitleY','tLineSize','tLineX','tLineY','tRulesSize','tRulesX','tRulesTop','tRulesWidth','tRulesHeight','tFlavorSize','tFlavorX','tFlavorTop','tFlavorWidth','tFlavorHeight','hpSize','hpX','hpY','hpW','hpH','watermark','limitWarChief']
 .forEach(id=> el(id).addEventListener('input', ()=>{ if (state.cards.length) renderCard(state.cards[state.idx]); }));
 
 el('nextCard').addEventListener('click', ()=>{ if (!state.cards.length) return; state.idx = (state.idx+1) % state.cards.length; renderCard(state.cards[state.idx]); });
 
 el('dlCard').addEventListener('click', ()=>{ const a=document.createElement('a'); a.download=(state.cards[state.idx][state.map.name]||'card')+'.png'; a.href=$canvas.toDataURL('image/png'); a.click(); });
 
-el('renderAll').addEventListener('click', async()=>{
-  if (!state.cards.length) return; clearGallery(); const g=el('gallery');
-  for (let i=0;i<state.cards.length;i++){
-    await renderCard(state.cards[i]);
-    const blob = await new Promise(res=> $canvas.toBlob(res,'image/png'));
-    const url = URL.createObjectURL(blob); galleryURLRevoke.push(url);
-    const div = document.createElement('div'); div.className='thumb';
-    const img = document.createElement('img'); img.src=url; div.appendChild(img);
-    const name = (state.cards[i][state.map.name]||`Card ${i+1}`);
-    const dl = document.createElement('a'); dl.textContent='Download'; dl.href=url; dl.download=name+'.png';
-    const p = document.createElement('div'); p.className='small'; p.textContent=name; div.appendChild(p); div.appendChild(dl);
-    g.appendChild(div);
-  }
-});
+let galleryURLRevoke=[]; function clearGallery(){ const g=el('gallery'); g.innerHTML=''; galleryURLRevoke.forEach(u=>URL.revokeObjectURL(u)); galleryURLRevoke=[]; }
 
-el('buildSheet').addEventListener('click', async()=>{ if (!state.cards.length) return; await buildSheet(state.cards); });
+gel('renderAll').addEventListener('click', async()=>{ if (!state.cards.length) return; clearGallery(); const g=el('gallery'); for (let i=0;i<state.cards.length;i++){ await renderCard(state.cards[i]); const blob=await new Promise(res=>$canvas.toBlob(res,'image/png')); const url=URL.createObjectURL(blob); galleryURLRevoke.push(url); const div=document.createElement('div'); div.className='thumb'; const img=document.createElement('img'); img.src=url; div.appendChild(img); const name=(state.cards[i][state.map.name]||`Card ${i+1}`); const dl=document.createElement('a'); dl.textContent='Download'; dl.href=url; dl.download=name+'.png'; const p=document.createElement('div'); p.className='small'; p.textContent=name; div.appendChild(p); div.appendChild(dl); g.appendChild(div);} });
 
-el('dlSheet').addEventListener('click', ()=>{ const a=document.createElement('a'); a.download='tts_sheet_10x7.png'; a.href=$sheet.toDataURL('image/png'); a.click(); });
+gel('buildSheet').addEventListener('click', async()=>{ if (!state.cards.length) return; await buildSheet(state.cards); });
 
-el('prompts').addEventListener('click', ()=>{
-  if (!state.cards.length) return; const list = state.cards.map(c=>makePrompt(c)); el('promptBox').value = JSON.stringify(list, null, 2);
-});
+gel('dlSheet').addEventListener('click', ()=>{ const a=document.createElement('a'); a.download='tts_sheet_10x7.png'; a.href=$sheet.toDataURL('image/png'); a.click(); });
 
-</script>
-</body>
-</html>
+gel('prompts').addEventListener('click', ()=>{ if (!state.cards.length) return; const list=state.cards.map(c=>makePrompt(c)); el('promptBox').value=JSON.stringify(list,null,2); });
