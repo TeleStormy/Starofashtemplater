@@ -57,6 +57,7 @@
   <span class="tag">CSV ➜ Cards ➜ Exports</span>
   <span class="tag">TTS 10×7</span>
   <span class="tag">War Chiefs 1024×1536 • Others 1:1</span>
+  <span id="err" class="tag" style="display:none;color:#ffb84d;border-color:#594223;background:#3a2d1d">⚠︎ script</span>
 </header>
 <main>
   <!-- LEFT: Controls -->
@@ -284,14 +285,28 @@ const state = {
   map: { id: 'ID', name: 'Name', faction: 'Faction', type: 'Type', cost: 'Cost', atk:'ATK', hp:'HP', mov:'MOV', rules:'Rules', flavor:'Flavor', image:'Image' },
   idx: 0,
   edit:{enabled:false,snapping:true,dragging:false,selected:null,handle:null},
+  frame:{img:null, alpha:1, enabled:false, above:false, src:null},
 };
 
 // ---- DOM refs ----
 const el = id=>document.getElementById(id);
 const $canvas = el('cardCanvas');
 const $ctx = $canvas.getContext('2d');
-const $sheet = el('sheetCanvconst $ctx = $canvas.getContext('2d');
-const $sheet = el('sheetCanvas');itMode = (iw, ih, ow, oh, mode) => {
+const $sheet = el('sheetCanvas');
+const $sctx = $sheet.getContext('2d');
+
+// global error surfacer so we don't silently fail
+window.addEventListener('error', (e)=>{
+  const badge = document.getElementById('err'); if (!badge) return;
+  badge.style.display='inline-block'; badge.textContent = '⚠ ' + (e.message||'Script error');
+});
+window.addEventListener('unhandledrejection', (e)=>{
+  const badge = document.getElementById('err'); if (!badge) return;
+  badge.style.display='inline-block'; badge.textContent = '⚠ ' + (e.reason && e.reason.message ? e.reason.message : 'Unhandled promise rejection');
+});
+
+// ---- Utils ----
+const fitMode = (iw, ih, ow, oh, mode) => {
   const ir = iw/ih, or = ow/oh; let w, h;
   if (mode==='cover' ? ir<or : ir>or){ w = ow; h = ow/ir; } else { h = oh; w = oh*ir; }
   const x = (ow - w)/2, y = (oh - h)/2; return {x,y,w,h};
@@ -300,8 +315,7 @@ const loadImage = src => new Promise((res,rej)=>{ const img=new Image(); img.cro
 
 function factionColors(f){
   const x = (f||'').toLowerCase();
-  edit:{enabled:false,snapping:true,dragging:false,selected:null,handle:null},
-  frame:{img:null, alpha:1, enabled:false, above:false, src:null},fb37a'};
+  if (x.includes('flame')) return {base:'#26160f', frame:'#b8571b', accent:'#ffb37a'};
   if (x.includes('blood')) return {base:'#1c1111', frame:'#8a1d1d', accent:'#ff8a8a'};
   if (x.includes('ash'))   return {base:'#161616', frame:'#7c7c7c', accent:'#d9d4c5'};
   return {base:'#151517', frame:'#555', accent:'#ddd'};
@@ -336,7 +350,7 @@ async function renderCard(card){
   const padX = +el('padX').value||32; const padY = +el('padY').value||24;
   const border = +el('border').value||16; const radius = +el('radius').value||28; const frameAlpha = +el('frameOpacity').value||0.85;
   const artTop = +el('artTop').value||210; const artHeight = +el('artHeight').value||480; const artFit = el('artFit').value;
-  const titleasync function renderCardnst titleY = +el('tTitleY').value||120; const titleSize = +el('tTitleSize').value||48;
+  const titleX = +el('tTitleX').value||32; const titleY = +el('tTitleY').value||120; const titleSize = +el('tTitleSize').value||48;
   const lineX = +el('tLineX').value||32; const lineY = +el('tLineY').value||168; const lineSize = +el('tLineSize').value||24;
   const rulesX = +el('tRulesX').value||32; const rulesTop = +el('tRulesTop').value||740; const rulesW = +el('tRulesWidth').value|| (W-64); const rulesH = +el('tRulesHeight').value|| Math.round(H*0.18); const rulesSize = +el('tRulesSize').value||22;
   const flavorX = +el('tFlavorX').value||32; const flavorTop = +el('tFlavorTop').value||960; const flavorW = +el('tFlavorWidth').value|| (W-64); const flavorH = +el('tFlavorHeight').value|| Math.round(H*0.12); const flavorSize = +el('tFlavorSize').value||18;
@@ -359,6 +373,15 @@ async function renderCard(card){
   const grad = $ctx.createLinearGradient(0,0,W,H); grad.addColorStop(0, colors.frame); grad.addColorStop(1, '#1a1a1a');
   $ctx.fillStyle = grad; $ctx.fillRect(0,0,W,H); $ctx.restore();
 
+  // If frame is enabled and should sit under text, draw it now (will be below everything if we use destination-over later)
+  if (state.frame && state.frame.enabled && state.frame.img && !state.frame.above){
+    $ctx.save();
+    // Draw under existing future strokes by drawing now (before text) — and also ensure it's not occluding later by staying in normal flow
+    $ctx.globalAlpha = state.frame.alpha;
+    $ctx.drawImage(state.frame.img, 0, 0, W, H);
+    $ctx.restore();
+  }
+
   // Title
   const name = (card[state.map.name]||'').toString();
   $ctx.fillStyle = '#f3efe8'; $ctx.font = `700 ${titleSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`; $ctx.textAlign='left';
@@ -371,16 +394,7 @@ async function renderCard(card){
   const mov  = (card[state.map.mov]||'').toString();
   const hp   = (card[state.map.hp]||'').toString();
   const line = [type, cost?`Cost ${cost}`:null, (atk||hp)?`${atk||''}${atk&&hp?'/':''}${hp||''}`:null].filter(Boolean).join(' • ');
-  $ctx.fillStyle = '#d7$ctx.fillStyle = grad; $ctx.fillRect(0,0,W,H); $ctx.restore();
-
-  // If frame is enabled and should sit under text, draw it now (will be below everything if we use destination-over later)
-  if (state.frame && state.frame.enabled && state.frame.img && !state.frame.above){
-    $ctx.save();
-    // Draw under existing future strokes by drawing now (before text) — and also ensure it's not occluding later by staying in normal flow
-    $ctx.globalAlpha = state.frame.alpha;
-    $ctx.drawImage(state.frame.img, 0, 0, W, H);
-    $ctx.restore();
-  }o,Helvetica,Arial`;
+  $ctx.fillStyle = '#d7d3cf'; $ctx.font = `600 ${lineSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`;
   $ctx.fillText(truncToWidth(line, W - lineX - 32, $ctx), lineX, lineY);
 
   // Art area
@@ -435,23 +449,26 @@ async function renderCard(card){
   if (wm){ $ctx.fillStyle = '#b9b4ad'; $ctx.globalAlpha=.75; $ctx.font=`600 16px system-ui,Segoe UI,Roboto,Helvetica,Arial`; $ctx.textAlign='center'; $ctx.fillText(wm, W/2, H-12); $ctx.globalAlpha=1; }
 
   // Edit overlay draw when enabled
-  if (el(// Frame overlay drawing (z-order): under text by default, or above if toggled
+  // Frame overlay drawing (z-order): under text by default, or above if toggled
   if (state.frame.enabled && state.frame.img && state.frame.above){
     $ctx.save(); $ctx.globalAlpha = state.frame.alpha; $ctx.drawImage(state.frame.img, 0, 0, W, H); $ctx.restore();
   }
   if (el('editMode') && el('editMode').checked) { drawOverlay(); }
-  return $canvas;tLineDash([8,6]); ctx.lineWidth=2; ctx.strokeRect(x,y,w,h); ctx.restore(); }
+  return $canvas;
+  return $canvas;
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function placeholder(ctx,x,y,w,h){ ctx.save(); ctx.strokeStyle="#333"; ctx.setLineDash([8,6]); ctx.lineWidth=2; ctx.strokeRect(x,y,w,h); ctx.restore(); }
 function truncToWidth(text,maxWidth,ctx){ let s=text; while (ctx.measureText(s).width>maxWidth && s.length>3){ s=s.slice(0,-4)+'…'; } return s; }
 function wrapWords(text){ return (text||'').replace(/\s+/g,' ').trim(); }
 function multiline(ctx, text, x, top, width, lh){
   text = wrapWords(text);
-  let line='', y=top; const parts=text.split(' ')// Frame overlay drawing (z-order): under text by default, or above if toggled
-  if (state.frame.enabled && state.frame.img && state.frame.above){
-    $ctx.save(); $ctx.globalAlpha = state.frame.alpha; $ctx.drawImage(state.frame.img, 0, 0, W, H); $ctx.restore();
-  }
-
-  if (el('editMode') && el('editMode').checked) { drawOverlay(); }
-  return $canvas;e+' '+parts[i] : parts[i];
+  let line='', y=top; const parts=text.split(' ');
+  for (let i=0;i<parts.length;i++){
+    const test = line? line+' '+parts[i] : parts[i];
     if (ctx.measureText(test).width>width){ ctx.fillText(line, x, y); line=parts[i]; y+=lh; }
     else line=test;
   }
@@ -483,28 +500,31 @@ function makePrompt(card){
   return { name, prompt };
 }
 
-// ----// ---- Handlers ----
+// ---- Handlers ----
 
 // Frame overlay helpers
 async function setFrameFromURL(url){ try{ const img = await loadImage(url); state.frame.img = img; state.frame.src = url; if(state.cards.length) renderCard(state.cards[state.idx]); }catch(e){ console.error(e); alert('Failed to load frame image.'); } }
 
 // wire UI for frame overlay
 (function wireFrameUI(){
-  const fFile = document.getElementById('frameFile');
-  const fUrl = document.getElementById('frameUrl');
-  const fAlpha = document.getElementById('frameAlpha');
-  const fUse = document.getElementById('useFrame');
-  const fAbove = document.getElementById('frameAbove');
-  const fClear = document.getElementById('clearFrame');
-  if (!fFile || !fUrl) return; // in case markup is missing
-  fFile.addEventListener('change', async (e)=>{ const file=e.target.files[0]; if(!file) return; const url=URL.createObjectURL(file); await setFrameFromURL(url); });
-  fUrl.addEventListener('change', async ()=>{ const url=fUrl.value.trim(); if(url) await setFrameFromURL(url); });
-  fAlpha.addEventListener('input', ()=>{ state.frame.alpha = Math.min(1, Math.max(0, +fAlpha.value||1)); if(state.cards.length) renderCard(state.cards[state.idx]); });
-  fUse.addEventListener('change', ()=>{ state.frame.enabled = fUse.checked; if(state.cards.length) renderCard(state.cards[state.idx]); });
-  fAbove.addEventListener('change', ()=>{ state.frame.above = fAbove.checked; if(state.cards.length) renderCard(state.cards[state.idx]); });
-  fClear.addEventListener('click', ()=>{ state.frame={img:null, alpha:1, enabled:false, above:false, src:null}; fFile.value=''; fUrl.value=''; fAlpha.value='1'; fUse.checked=false; fAbove.checked=false; if(state.cards.length) renderCard(state.cards[state.idx]); });
+  try{
+    const fFile = document.getElementById('frameFile');
+    const fUrl = document.getElementById('frameUrl');
+    const fAlpha = document.getElementById('frameAlpha');
+    const fUse = document.getElementById('useFrame');
+    const fAbove = document.getElementById('frameAbove');
+    const fClear = document.getElementById('clearFrame');
+    if (!fFile || !fUrl) return; // in case markup is missing
+    fFile.addEventListener('change', async (e)=>{ try{ const file=e.target.files[0]; if(!file) return; const url=URL.createObjectURL(file); await setFrameFromURL(url); }catch(err){ console.error(err); alert('Failed to read frame file.'); } });
+    fUrl.addEventListener('change', async ()=>{ try{ const url=fUrl.value.trim(); if(url) await setFrameFromURL(url); }catch(err){ console.error(err); alert('Failed to load frame URL.'); } });
+    fAlpha.addEventListener('input', ()=>{ try{ state.frame.alpha = Math.min(1, Math.max(0, +fAlpha.value||1)); if(state.cards.length) renderCard(state.cards[state.idx]); }catch(err){ console.error(err); } });
+    fUse.addEventListener('change', ()=>{ try{ state.frame.enabled = fUse.checked; if(state.cards.length) renderCard(state.cards[state.idx]); }catch(err){ console.error(err); } });
+    fAbove.addEventListener('change', ()=>{ try{ state.frame.above = fAbove.checked; if(state.cards.length) renderCard(state.cards[state.idx]); }catch(err){ console.error(err); } });
+    fClear.addEventListener('click', ()=>{ try{ state.frame={img:null, alpha:1, enabled:false, above:false, src:null}; fFile.value=''; fUrl.value=''; fAlpha.value='1'; fUse.checked=false; fAbove.checked=false; if(state.cards.length) renderCard(state.cards[state.idx]); }catch(err){ console.error(err); } });
+  } catch(e){ console.error(e); }
 })();
-function importCSV(previewOnly=false){
+
+async function importCSV(previewOnly=false){
   const f = el('csvFile').files[0];
   if (!f){ alert('Choose a CSV file first.'); return; }
   const txt = await f.text();
@@ -542,13 +562,13 @@ function clearGallery(){ const g = el('gallery'); g.innerHTML=''; galleryURLRevo
 
 el('csvFile').addEventListener('change', async ()=>{ try{ await importCSV(true); } catch(e){ console.error(e); alert('Failed to parse CSV.'); } });
 
-document.getElementById('loadCSV').addEventListener('click', async()=>{ await importCSV(false); });
+document.getElementById('loadCSV').addEventListener('click', async()=>{ try{ await importCSV(false); } catch(e){ console.error(e); alert('Import CSV failed: '+e.message); } }); });
 
-document.getElementById('previewCSV').addEventListener('click', async()=>{ await importCSV(true); });
+document.getElementById('previewCSV').addEventListener('click', async()=>{ try{ await importCSV(true); } catch(e){ console.error(e); alert('Preview CSV failed: '+e.message); } }); });
 
-document.getElementById('importImages').addEventListener('click', ()=>{ el('imgFiles').click(); });
+document.getElementById('importImages').addEventListener('click', ()=>{ try{ el('imgFiles').click(); }catch(e){ console.error(e); alert('Image picker failed to open.'); } });
 
-el('imgFiles').addEventListener('change', async (e)=>{ const files=[...e.target.files]; if (!files.length) return; await attachLocalImages(files); }); state.cards = parseCSV(txt);
+el('imgFiles').addEventListener('change', async (e)=>{ try{ const files=[...e.target.files]; if (!files.length) return; await attachLocalImages(files); } catch(err){ console.error(err); alert('Failed to import images: '+err.message); } }); }); state.cards = parseCSV(txt);
   // guess headers if present
   const H = (state.cards[0] && Object.keys(state.cards[0])) || [];
   const auto = (name)=> H.find(h=>h.toLowerCase()===name.toLowerCase()) || state.map[name];
