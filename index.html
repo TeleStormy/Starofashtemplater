@@ -27,6 +27,8 @@
   .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
   .thumb{background:var(--panel2);border:1px dashed var(--border);border-radius:12px;padding:8px}
   .small{font-size:12px;color:var(--muted)}
+.toggler{border:1px solid var(--border); background:var(--panel2);}
+  .toggler.active{background:#243226;border-color:#2f6b4f;color:#9ee2b9;}
 </style>
 </head>
 <body>
@@ -72,6 +74,7 @@
         <label>Card</label>
         <canvas id="cardCanvas" width="1024" height="1024"></canvas>
         <div class="actions" style="margin-top:8px">
+          <button id="toggleEdit" class="badge">✥ Edit Mode: OFF</button>
           <button id="dlCard">Download PNG</button>
           <button id="nextCard">Next ▶</button>
         </div>
@@ -331,7 +334,11 @@ el('imgFiles').addEventListener('change', async e=>{ try{ const files=[...e.targ
 
 ['outSize','palette','border','radius','frameOpacity','bgUrl','padX','artTop','artHeight','artFit','tTitleSize','tTitleX','tTitleY','tLineSize','tLineX','tLineY','tRulesSize','tRulesX','tRulesTop','tRulesWidth','tRulesHeight','tFlavorSize','tFlavorX','tFlavorTop','tFlavorWidth','tFlavorHeight','hpSize','hpX','hpY','hpW','hpH','movSize','movX','movY','movW','movH','watermark'].forEach(id=>{ const n=el(id); if(n) n.addEventListener('input',()=>{ if(state.cards.length) renderCard(state.cards[state.idx]); }); });
 
-el('editMode').addEventListener('change',()=>{ if(state.cards.length) renderCard(state.cards[state.idx]); });
+el('editMode').addEventListener('change',()=>{ const b=el('toggleEdit'); if(b){ b.classList.toggle('active', el('editMode').checked); b.textContent = el('editMode').checked ? '✥ Edit Mode: ON' : '✥ Edit Mode: OFF'; }
+  if(state.cards.length) renderCard(state.cards[state.idx]); });
+
+// Clickable toggle button near the canvas
+el('toggleEdit').addEventListener('click',()=>{ const c=el('editMode'); c.checked=!c.checked; const b=el('toggleEdit'); b.classList.toggle('active', c.checked); b.textContent = c.checked ? '✥ Edit Mode: ON' : '✥ Edit Mode: OFF'; if(state.cards.length) renderCard(state.cards[state.idx]); });
 el('snap').addEventListener('change',()=>{});
 
 el('nextCard').addEventListener('click',()=>{ if(!state.cards.length) return; state.idx=(state.idx+1)%state.cards.length; renderCard(state.cards[state.idx]); });
