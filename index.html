@@ -327,9 +327,38 @@ function makePrompt(c){ const name=c[state.map.name]||''; const faction=(''+(c[s
 
 // ===== Wiring =====
 el('csvFile').addEventListener('change', async()=>{ try{ await importCSV(true); }catch(e){ console.error(e); alert('CSV preview failed: '+e.message); } });
-el('loadCSV').addEventListener('click', async()=>{ try{ await importCSV(false); }catch(e){ console.error(e); alert('Import CSV failed: '+e.message); } });
-el('previewCSV').addEventListener('click', async()=>{ try{ await importCSV(true); }catch(e){ console.error(e); alert('Preview failed: '+e.message); } });
-el('importImages').addEventListener('click',()=>{ try{ el('imgFiles').click(); }catch(e){ console.error(e); alert('Image picker failed to open.'); } });
+el('loadCSV').addEventListener('click', async()=>{
+  try{
+    const pickIfNeeded = async (cb)=>{
+      if(!(el('csvFile').files&&el('csvFile').files.length)){
+        const once = async()=>{ el('csvFile').removeEventListener('change', once); await cb(); };
+        el('csvFile').addEventListener('change', once);
+        el('csvFile').click();
+      } else { await cb(); }
+    };
+    await pickIfNeeded(()=>importCSV(false));
+  }catch(e){ console.error(e); alert('Import CSV failed: '+e.message); }
+}); }catch(e){ console.error(e); alert('Import CSV failed: '+e.message); } });
+el('previewCSV').addEventListener('click', async()=>{
+  try{
+    const pickIfNeeded = async (cb)=>{
+      if(!(el('csvFile').files&&el('csvFile').files.length)){
+        const once = async()=>{ el('csvFile').removeEventListener('change', once); await cb(); };
+        el('csvFile').addEventListener('change', once);
+        el('csvFile').click();
+      } else { await cb(); }
+    };
+    await pickIfNeeded(()=>importCSV(true));
+  }catch(e){ console.error(e); alert('Preview CSV failed: '+e.message); }
+}); }catch(e){ console.error(e); alert('Preview failed: '+e.message); } });
+el('importImages').addEventListener('click',()=>{
+  try{
+    const fileInput = el('imgFiles');
+    if(!fileInput) return alert('Missing hidden file input for images.');
+    fileInput.value=''; // reset so selecting same folder re-triggers change
+    fileInput.click();
+  }catch(e){ console.error(e); alert('Image picker failed to open.'); }
+}); }catch(e){ console.error(e); alert('Image picker failed to open.'); } });
 el('imgFiles').addEventListener('change', async e=>{ try{ const files=[...e.target.files]; if(!files.length) return; await attachLocalImagesV2(files); }catch(e2){ console.error(e2); alert('Failed to import images: '+e2.message); } }); alert('Failed to import images: '+e2.message); } });
 
 ['outSize','palette','border','radius','frameOpacity','bgUrl','padX','artTop','artHeight','artFit','tTitleSize','tTitleX','tTitleY','tLineSize','tLineX','tLineY','tRulesSize','tRulesX','tRulesTop','tRulesWidth','tRulesHeight','tFlavorSize','tFlavorX','tFlavorTop','tFlavorWidth','tFlavorHeight','hpSize','hpX','hpY','hpW','hpH','movSize','movX','movY','movW','movH','watermark'].forEach(id=>{ const n=el(id); if(n) n.addEventListener('input',()=>{ if(state.cards.length) renderCard(state.cards[state.idx]); }); });
