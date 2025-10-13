@@ -78,8 +78,11 @@
         <div class="pill"><input id="limitWarChief" type="checkbox" /><span>Keep War Chiefs 1024×1536, others 1:1</span></div>
       </div>
       <div class="actions" style="margin-top:8px">
+          <button id="loadCSV" class="primary">Import CSV</button>
+          <button id="previewCSV">Preview First Card</button>
           <button id="importImages" class="ok">Mass Import Images</button>
         </div>
+        <input type="file" id="imgFiles" accept="image/*" multiple webkitdirectory directory style="display:none">
         <div class="note small" style="margin-top:8px">
         Tip: If your CSV has headers like <span class="mono">Name, Faction, Type, Cost, ATK, HP, Rules, Flavor, Image</span>, mapping below will just auto‑fill.
       </div>
@@ -462,11 +465,51 @@ function makePrompt(card){
 }
 
 // ---- Handlers ----
+async function importCSV(previewOnly=false){
+  const f = el('csvFile').files[0];
+  if (!f){ alert('Choose a CSV file first.'); return; }
+  const txt = await f.text();
+  let cards = parseCSV(txt);
+  const H = (cards[0] && Object.keys(cards[0])) || [];
+  const auto = (name)=> H.find(h=>h.toLowerCase()===name.toLowerCase()) || state.map[name];
+  state.map = { id:auto('ID')||auto('CardID')||auto('Code')||auto('Name'), name:auto('Name'), faction:auto('Faction'), type:auto('Type'), cost:auto('Cost'), atk:auto('ATK'), hp:auto('HP'), mov:auto('MOV')||auto('Move')||auto('Movement'), rules:auto('Rules'), flavor:auto('Flavor'), image:auto('Image')||auto('Art')||auto('Img') };
+  if (el('dedupe').checked){ const seen=new Set(); cards = cards.filter(c=>{ const k=(c[state.map.id]||c[state.map.name]||'').toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }); }
+  state.cards = cards; state.idx=0; buildMapUI();
+  if (!state.cards.length){ alert('CSV parsed but found 0 rows.'); return; }
+  if (previewOnly){ renderCard(state.cards[0]); return; }
+  renderCard(state.cards[0]); buildSheet(state.cards);
+}
+
+function normKey(s){ return (s||'').toString().toLowerCase().replace(/\.(png|jpe?g|webp|gif)$/,'').replace(/[^a-z0-9]+/g,'').trim(); }
+let importedImageURLs = [];
+async function attachLocalImages(files){
+  if (!state.cards.length){ alert('Import a CSV first so we can match images to rows.'); return; }
+  const map = new Map();
+  for (const f of files){ const url = URL.createObjectURL(f); importedImageURLs.push(url); map.set(normKey(f.name), url); }
+  let matched=0;
+  for (const c of state.cards){
+    const cur=(c[state.map.image]||'').trim(); if (cur) continue; // don't override explicit URLs from CSV
+    const idKey = normKey(c[state.map.id]); const nameKey = normKey(c[state.map.name]);
+    const hit = map.get(idKey) || map.get(nameKey);
+    if (hit){ c[state.map.image]=hit; matched++; }
+  }
+  if (matched===0) alert('No local images matched by ID or Name. Make sure filenames match the ID or Name columns.');
+  else alert(`Attached ${matched} images by ID/Name match.`);
+  renderCard(state.cards[state.idx]);
+}
+
 let galleryURLRevoke = [];
 function clearGallery(){ const g = el('gallery'); g.innerHTML=''; galleryURLRevoke.forEach(u=>URL.revokeObjectURL(u)); galleryURLRevoke=[]; }
 
-el('csvFile').addEventListener('change', async e=>{
-  const f = e.target.files[0]; if (!f) return; const txt = await f.text(); state.cards = parseCSV(txt);
+el('csvFile').addEventListener('change', async ()=>{ try{ await importCSV(true); } catch(e){ console.error(e); alert('Failed to parse CSV.'); } });
+
+document.getElementById('loadCSV').addEventListener('click', async()=>{ await importCSV(false); });
+
+document.getElementById('previewCSV').addEventListener('click', async()=>{ await importCSV(true); });
+
+document.getElementById('importImages').addEventListener('click', ()=>{ el('imgFiles').click(); });
+
+el('imgFiles').addEventListener('change', async (e)=>{ const files=[...e.target.files]; if (!files.length) return; await attachLocalImages(files); }); state.cards = parseCSV(txt);
   // guess headers if present
   const H = (state.cards[0] && Object.keys(state.cards[0])) || [];
   const auto = (name)=> H.find(h=>h.toLowerCase()===name.toLowerCase()) || state.map[name];
