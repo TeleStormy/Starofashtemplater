@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater (Classic Layout v6.1)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.2)</title>
 <style>
   :root{
     --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
@@ -55,6 +55,9 @@
               font-size:12px; letter-spacing:.3px; cursor:grab;}
   .art-handle:active{cursor:grabbing}
 
+  /* Frame template overlay */
+  .frame-template{position:absolute; inset:0; object-fit:contain; pointer-events:none; opacity:.95}
+
   /* Text fields */
   .name{position:absolute; left:24px; top:18px; right:24px; font-weight:700; font-size:28px; letter-spacing:.4px}
   .type-line{position:absolute; left:24px; top:58px; right:24px; color:var(--muted); font-size:14px}
@@ -65,8 +68,8 @@
   .badges{position:absolute; right:18px; top:18px; display:flex; gap:8px}
   .badge{min-width:42px; height:42px; border-radius:999px; background:rgba(0,0,0,.35); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-weight:700}
 
-  /* Edit boxes */
-  .edit-rect{position:absolute; border:2px solid #4da3ff; border-radius:10px; pointer-events:none}
+  /* Selection edit overlay (generic) */
+  .edit-rect{position:absolute; border:2px solid #4da3ff; border-radius:10px; pointer-events:auto; background:rgba(77,163,255,.06)}
   .corner{position:absolute; width:14px; height:14px; border-radius:50%; background:#4da3ff; border:2px solid #0b2340}
   .corner.tl{left:-9px; top:-9px} .corner.tr{right:-9px; top:-9px} .corner.bl{left:-9px; bottom:-9px} .corner.br{right:-9px; bottom:-9px}
 
@@ -80,7 +83,7 @@
 <body>
   <div class="app">
     <header>
-      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.1</span></h1>
+      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.2</span></h1>
       <div class="toolbar">
         <button id="btn-export-png" class="primary">Export PNG</button>
         <button id="btn-save-layout" title="Save your current field positions to localStorage">Save Layout</button>
@@ -107,6 +110,19 @@
         <div class="row"><label>Scale</label><input type="range" id="artScale" min="20" max="300" value="100"></div>
         <div class="row"><label>Padding</label><input type="range" id="artPad" min="0" max="120" value="0"></div>
         <div class="row"><button id="fitArt" class="ok">Fit to Frame</button></div>
+      </div>
+
+      <div class="section">
+        <h3>Card Frame Template</h3>
+        <div class="row"><input type="file" id="frameFile" accept="image/*"></div>
+        <div class="row"><label>Opacity</label><input type="range" id="frameOpacity" min="0" max="100" value="95"></div>
+        <div class="row"><label>Z-Order</label>
+          <select id="frameZ">
+            <option value="above">Above Art</option>
+            <option value="below">Below Art</option>
+          </select>
+        </div>
+        <div class="row small muted">Tip: use a transparent PNG exported from your PSD/frame editor.</div>
       </div>
 
       <div class="section">
@@ -144,7 +160,9 @@
           <div id="factionBorder" class="faction-border ash"></div>
           <div class="frame"></div>
 
-          <div id="artBox" class="art-box">
+          <img id="frameTpl" class="frame-template" alt="frame template" style="z-index:5; display:none"/>
+
+          <div id="artBox" class="art-box" style="z-index:4">
             <img id="art" class="art" alt="art" />
             <div id="artHandle" class="art-handle" title="Drag to move artwork">Move Art</div>
           </div>
@@ -154,14 +172,14 @@
           <div id="rules" class="rules">Rules text...</div>
           <div id="flavor" class="flavor">“Flavor text...”</div>
 
-          <div class="badges">
+          <div id="badges" class="badges">
             <div id="bMOV" class="badge" title="Movement">1</div>
             <div id="bATK" class="badge" title="Attack">1</div>
             <div id="bHP" class="badge" title="Health">1</div>
           </div>
 
-          <!-- Visible edit rectangle for the rules box to show larger grab area (classic look) -->
-          <div id="rulesEdit" class="edit-rect" style="left:22px; right:22px; bottom:80px; height:170px; display:none">
+          <!-- Generic selection rectangle -->
+          <div id="selEdit" class="edit-rect" style="display:none">
             <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
           </div>
         </div>
@@ -178,12 +196,16 @@
             <option value="type">Type</option>
             <option value="rules">Rules Box</option>
             <option value="flavor">Flavor</option>
+            <option value="bMOV">Badge — MOV</option>
+            <option value="bATK">Badge — ATK</option>
+            <option value="bHP">Badge — HP</option>
+            <option value="badges">Badge Cluster</option>
           </select>
         </div>
         <div class="row"><label>X</label><input id="posX" type="number" value="24"><label>Y</label><input id="posY" type="number" value="18"></div>
         <div class="row"><label>W</label><input id="posW" type="number" value="696"><label>H</label><input id="posH" type="number" value="40"></div>
         <div class="row"><button id="applyLayout">Apply</button><button id="toggleGuides">Toggle Guides</button></div>
-        <div class="row hint">Tip: Use the big blue rectangle to move/resize the Rules box — easier than tiny dots.</div>
+        <div class="row hint">Drag the blue rectangle to move the selected element. Resize via W/H inputs.</div>
       </div>
 
       <div class="section">
@@ -207,7 +229,8 @@
     images: new Map(), // key: basename (lower) -> objectURL
     layout: null,
     guides: false,
-    art: { x:0, y:0, scale:1, pad:0 }
+    art: { x:0, y:0, scale:1, pad:0 },
+    frameUrl: null
   };
 
   const q = sel => document.querySelector(sel);
@@ -215,7 +238,8 @@
   const art = q('#art');
   const artBox = q('#artBox');
   const artHandle = q('#artHandle');
-  const rulesEdit = q('#rulesEdit');
+  const selEdit = q('#selEdit');
+  const frameTpl = q('#frameTpl');
 
   const fldName = q('#fldName');
   const fldType = q('#fldType');
@@ -225,6 +249,7 @@
   const bATK = q('#bATK');
   const bHP  = q('#bHP');
   const bMOV = q('#bMOV');
+  const badges = q('#badges');
 
   const artX = q('#artX');
   const artY = q('#artY');
@@ -237,7 +262,9 @@
 
   // ------- CSV Loading (tiny parser) -------
   function parseCSV(text){
-    const lines = text.replace(/\r/g,'').split('\n').filter(Boolean);
+    const lines = text.replace(/
+/g,'').split('
+').filter(Boolean);
     const headers = lines.shift().split(',').map(s=>s.trim());
     return lines.map(line => {
       const cells = [];
@@ -276,6 +303,20 @@
     }
     setDiag(`Imported ${added} images. Matching by Art or Name.`);
     applyRow();
+  });
+
+  // ------- Frame Template Loader -------
+  q('#frameFile').addEventListener('change', ev=>{
+    const f = ev.target.files[0]; if(!f) return;
+    const url = URL.createObjectURL(f);
+    state.frameUrl = url; frameTpl.src = url; frameTpl.style.display = 'block';
+    setDiag('Frame template loaded.');
+  });
+  q('#frameOpacity').addEventListener('input', e=>{ frameTpl.style.opacity = (+e.target.value)/100; });
+  q('#frameZ').addEventListener('change', e=>{
+    const above = e.target.value === 'above';
+    frameTpl.style.zIndex = above ? 6 : 3;
+    artBox.style.zIndex = above ? 4 : 6; // swap order
   });
 
   // ------- Apply CSV row to canvas -------
@@ -351,42 +392,45 @@
   q('#fitArt').addEventListener('click', fitArtBox);
 
   // Drag handle for art (big center box)
-  let dragging=false, startX=0, startY=0, sX=0, sY=0;
+  let draggingArt=false, startX=0, startY=0, sX=0, sY=0;
   artHandle.addEventListener('mousedown', e=>{
-    dragging=true; startX=e.clientX; startY=e.clientY; sX=state.art.x; sY=state.art.y; e.preventDefault();
+    draggingArt=true; startX=e.clientX; startY=e.clientY; sX=state.art.x; sY=state.art.y; e.preventDefault();
   });
   window.addEventListener('mousemove', e=>{
-    if(!dragging) return; const dx=e.clientX-startX, dy=e.clientY-startY; state.art.x = sX+dx; state.art.y = sY+dy; artX.value=state.art.x; artY.value=state.art.y; applyArt();
+    if(!draggingArt) return; const dx=e.clientX-startX, dy=e.clientY-startY; state.art.x = sX+dx; state.art.y = sY+dy; artX.value=state.art.x; artY.value=state.art.y; applyArt();
   });
-  window.addEventListener('mouseup', ()=> dragging=false);
+  window.addEventListener('mouseup', ()=> draggingArt=false);
 
-  // ------- Layout editing -------
-  const elements = { name:q('#name'), type:q('#type'), rules:q('#rules'), flavor:q('#flavor') };
+  // ------- Layout editing (generic) -------
+  const elements = { name:q('#name'), type:q('#type'), rules:q('#rules'), flavor:q('#flavor'), bMOV, bATK, bHP, badges };
   const selElement = q('#selElement');
   const posX = q('#posX'), posY=q('#posY'), posW=q('#posW'), posH=q('#posH');
 
-  function syncInspector(){
-    const el = elements[selElement.value];
+  function boundsInStage(el){
     const r = el.getBoundingClientRect();
     const s = stage.getBoundingClientRect();
-    posX.value = Math.round(r.left - s.left);
-    posY.value = Math.round(r.top - s.top);
-    posW.value = Math.round(r.width);
-    posH.value = Math.round(r.height);
+    return {x: r.left - s.left, y: r.top - s.top, w: r.width, h: r.height};
+  }
 
-    // Show/hide big rules edit rect
-    if(selElement.value==='rules'){
-      rulesEdit.style.display='block';
-      rulesEdit.style.left = (r.left - s.left - 2) + 'px';
-      rulesEdit.style.top  = (r.top - s.top - 2) + 'px';
-      rulesEdit.style.width = (r.width + 4) + 'px';
-      rulesEdit.style.height= (r.height + 4) + 'px';
-    } else rulesEdit.style.display='none';
+  function syncInspector(){
+    const el = elements[selElement.value];
+    const b = boundsInStage(el);
+    posX.value = Math.round(b.x);
+    posY.value = Math.round(b.y);
+    posW.value = Math.round(b.w);
+    posH.value = Math.round(b.h);
+
+    selEdit.style.display='block';
+    selEdit.style.left = (b.x - 2) + 'px';
+    selEdit.style.top  = (b.y - 2) + 'px';
+    selEdit.style.width = (b.w + 4) + 'px';
+    selEdit.style.height= (b.h + 4) + 'px';
   }
 
   selElement.addEventListener('change', syncInspector);
   q('#applyLayout').addEventListener('click', ()=>{
     const el = elements[selElement.value];
+    el.style.position='absolute';
     el.style.left = posX.value + 'px';
     el.style.top  = posY.value + 'px';
     el.style.width= posW.value + 'px';
@@ -395,6 +439,16 @@
     setDiag('Applied layout to '+selElement.value);
   });
 
+  // Drag selected element by dragging the blue overlay
+  let draggingSel=false, selStart={x:0,y:0}, elStart={x:0,y:0};
+  selEdit.addEventListener('mousedown', e=>{
+    draggingSel=true; selStart={x:e.clientX, y:e.clientY}; const el = elements[selElement.value]; const b = boundsInStage(el); elStart={x:b.x, y:b.y}; e.preventDefault();
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!draggingSel) return; const dx=e.clientX-selStart.x, dy=e.clientY-selStart.y; posX.value = Math.round(elStart.x+dx); posY.value = Math.round(elStart.y+dy); q('#applyLayout').click();
+  });
+  window.addEventListener('mouseup', ()=> draggingSel=false);
+
   q('#toggleGuides').addEventListener('click', ()=>{
     state.guides = !state.guides; stage.style.outline = state.guides? '1px dashed #333' : 'none';
     setDiag('Guides '+(state.guides?'on':'off'));
@@ -402,40 +456,43 @@
 
   // ------- Save/Load Layout (localStorage & JSON) -------
   function captureLayout(){
+    const pick=(el)=>({left:el.style.left||el.offsetLeft+'px', top:el.style.top||el.offsetTop+'px', width:el.style.width||el.offsetWidth+'px', height:el.style.height||el.offsetHeight+'px'});
     return {
-      name: pickCSS(elements.name),
-      type: pickCSS(elements.type),
-      rules: pickCSS(elements.rules),
-      flavor: pickCSS(elements.flavor),
-      art: {...state.art}
+      name: pick(elements.name),
+      type: pick(elements.type),
+      rules: pick(elements.rules),
+      flavor: pick(elements.flavor),
+      bMOV: pick(elements.bMOV),
+      bATK: pick(elements.bATK),
+      bHP: pick(elements.bHP),
+      badges: pick(elements.badges),
+      art: {...state.art},
+      frame: {opacity: frameTpl.style.opacity || 0.95, z: frameTpl.style.zIndex||5}
     };
-  }
-  function pickCSS(el){
-    return {left:el.style.left||'24px', top:el.style.top||'18px', width:el.style.width||'696px', height:el.style.height||el.offsetHeight+'px'}
   }
   function applyLayout(layout){
     if(!layout) return;
-    for (const k of ['name','type','rules','flavor']){
-      const L = layout[k]; const el = elements[k]; if(!L||!el) continue;
-      el.style.left=L.left; el.style.top=L.top; el.style.width=L.width; el.style.height=L.height;
-    }
+    const keys=['name','type','rules','flavor','bMOV','bATK','bHP','badges'];
+    for (const k of keys){ const L=layout[k]; const el = elements[k]; if(!L||!el) continue; el.style.left=L.left; el.style.top=L.top; el.style.width=L.width; el.style.height=L.height; }
     state.art = layout.art || state.art; artX.value=state.art.x; artY.value=state.art.y; artScale.value=state.art.scale*100; artPad.value=state.art.pad; applyArt();
+    if(layout.frame){ frameTpl.style.opacity = layout.frame.opacity; frameTpl.style.zIndex = layout.frame.z; }
     syncInspector();
   }
 
   q('#btn-save-layout').addEventListener('click', ()=>{
-    const L=captureLayout(); localStorage.setItem('soa_layout_v61', JSON.stringify(L)); setDiag('Layout saved to browser storage.');
+    const L=captureLayout(); localStorage.setItem('soa_layout_v62', JSON.stringify(L)); setDiag('Layout saved to browser storage.');
   });
   q('#btn-load-layout').addEventListener('click', ()=>{
-    const raw = localStorage.getItem('soa_layout_v61'); if(!raw){ setDiag('No saved layout.'); return; }
+    const raw = localStorage.getItem('soa_layout_v62') || localStorage.getItem('soa_layout_v61');
+    if(!raw){ setDiag('No saved layout.'); return; }
     applyLayout(JSON.parse(raw)); setDiag('Layout loaded.');
   });
-  q('#btn-reset-layout').addEventListener('click', ()=>{ localStorage.removeItem('soa_layout_v61'); location.reload(); });
+  q('#btn-reset-layout').addEventListener('click', ()=>{ localStorage.removeItem('soa_layout_v62'); localStorage.removeItem('soa_layout_v61'); location.reload(); });
 
   // Export / Import JSON
   q('#btn-export-json').addEventListener('click', ()=>{
     const blob = new Blob([JSON.stringify(captureLayout(), null, 2)], {type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v61.json'; a.click();
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v62.json'; a.click();
   });
   q('#importJson').addEventListener('change', ev=>{
     const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ try{ applyLayout(JSON.parse(fr.result)); setDiag('Imported layout JSON.'); }catch(e){ setDiag('Invalid JSON.'); } }; fr.readAsText(f);
@@ -459,7 +516,7 @@
     const s = new XMLSerializer();
     const clone = node.cloneNode(true);
     // Remove edit overlay & handles from export
-    clone.querySelector('#rulesEdit')?.remove();
+    clone.querySelector('#selEdit')?.remove();
     const xml = s.serializeToString(clone);
     const w = node.offsetWidth, h = node.offsetHeight;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject width="100%" height="100%">${xml}</foreignObject></svg>`;
@@ -473,8 +530,8 @@
   }
 
   // Init
-  renderFields(); renderFaction(); fitArtBox(); syncInspector();
-  setDiag('Classic layout loaded. If your previous layout was saved, click “Load Layout”.');
+  renderFields(); renderFaction(); fitArtBox(); selElement.value='name'; syncInspector();
+  setDiag('Classic layout v6.2 loaded. Frame template loader + full element movement restored.');
   </script>
 </body>
 </html>
