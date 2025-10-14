@@ -307,44 +307,77 @@
       .replace(/[^a-z0-9]/g,''); // drop spaces/underscores/dashes
   }
 
-  // ------- CSV Loading (robust parser) -------
-  function parseCSV(text){
-    text = String(text).replace(/^\\uFEFF/, '').replace(/\\r/g,''); // remove BOM + CR
-    let delim = ',';
-    const first = (text.split('\\n')[0]||'');
-    const count = (s, rx) => (s.match(rx) || []).length;
-    if (count(first, /;/g) > count(first, /,/g)) delim = ';';
-    if (count(first, /\\t/g) > count(first, new RegExp('\\\\' + delim, 'g'))) delim = '\\t';
+// ------- CSV Loading (safe, no RegExp building) -------
+function normalizeKey(s){return String(s||'').toLowerCase().replace(/\.[^.]+$/,'').replace(/[^a-z0-9]/g,'');}
 
-    const lines = text.split('\\n').filter(l=>l.trim().length);
-    const headerLine = lines.shift() || '';
-    const headers = splitCSVLine(headerLine, delim).map(s=>s.trim());
-    const rows = lines.map(line=>{
-      const cells = splitCSVLine(line, delim);
-      const row={}; headers.forEach((h,i)=> row[h] = (cells[i]??'').trim());
-      return row;
-    });
-    setDiag(\`CSV parsed with "\${delim}" — \${rows.length} rows\`);
-    return rows;
-  }
-  function splitCSVLine(line, delim){
-    const out=[]; let cur=''; let inQ=false; for(let i=0;i<line.length;i++){
-      const ch=line[i];
-      if(ch === '"'){
-        if(inQ && line[i+1] === '"'){ cur+='"'; i++; } else { inQ=!inQ; }
-      } else if(ch===delim && !inQ){ out.push(cur); cur=''; }
-      else cur+=ch;
+// Pick delimiter by majority vote, no regex needed
+function detectDelimiter(firstLine){
+  const counts = {
+    ',': (firstLine.match(/,/g)||[]).length,
+    ';': (firstLine.match(/;/g)||[]).length,
+    '\t': (firstLine.match(/\t/g)||[]).length
+  };
+  // pick the delimiter with the highest count
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0] || ',';
+}
+
+// Proper quoted CSV splitter (state machine)
+function splitCSVLine(line, delim){
+  const out = [];
+  let cur = '';
+  let inQ = false;
+  for (let i=0; i<line.length; i++){
+    const ch = line[i];
+    if (ch === '"'){
+      if (inQ && line[i+1] === '"'){ cur += '"'; i++; }
+      else { inQ = !inQ; }
+    } else if (ch === delim && !inQ){
+      out.push(cur); cur = '';
+    } else {
+      cur += ch;
     }
-    out.push(cur); return out;
   }
+  out.push(cur);
+  return out;
+}
 
-  q('#btn-load-csv').addEventListener('click',()=> q('#csvFile').click());
-  q('#csvFile').addEventListener('change', ev=>{
-    const f = ev.target.files[0]; if(!f) return;
-    const fr = new FileReader();
-    fr.onload = () => { state.csvRows = parseCSV(fr.result); state.rowIndex=0; setDiag(\`Loaded \${state.csvRows.length} rows.\`); applyRow(); };
-    fr.readAsText(f);
+function parseCSV(text){
+  // Normalize line endings and strip BOM
+  text = String(text).replace(/^\uFEFF/, '').replace(/\r/g, '');
+  const lines = text.split('\n').filter(l => l.length);
+  if (!lines.length) return [];
+  const delim = detectDelimiter(lines[0]);
+  const headers = splitCSVLine(lines.shift(), delim).map(h => h.trim());
+
+  const rows = lines.map(line => {
+    const cells = splitCSVLine(line, delim);
+    const row = {};
+    headers.forEach((h,i)=> row[h] = (cells[i] ?? '').trim());
+    return row;
   });
+
+  setDiag(`CSV parsed with "${delim}" — ${rows.length} rows`);
+  return rows;
+}
+
+q('#btn-load-csv').addEventListener('click',()=> q('#csvFile').click());
+q('#csvFile').addEventListener('change', ev=>{
+  const f = ev.target.files[0]; if(!f) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      state.csvRows = parseCSV(fr.result);
+      state.rowIndex = 0;
+      setDiag(`Loaded ${state.csvRows.length} rows.`);
+      applyRow();
+    } catch (e){
+      console.error(e);
+      setDiag('CSV parse error. Check console for details.');
+    }
+  };
+  fr.readAsText(f);
+});
+
 
   // ------- Mass Images (fuzzy keys) -------
   q('#imgFiles').addEventListener('change', ev=>{
