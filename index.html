@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater (Classic Layout v6.6 updated)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.8)</title>
 <style>
   :root{
     --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
@@ -46,7 +46,7 @@
   /* center canvas */
   .center{position:relative}
   .stage{
-    position:relative;margin:20px auto;width:744px;height:1039px; /* 62x86mm-ish */
+    position:relative;margin:20px auto;width:744px;height:1039px;
     overflow:hidden;border-radius:16px;border:1px solid var(--border);
     background:#111;box-shadow:0 10px 40px rgba(0,0,0,.5)
   }
@@ -90,8 +90,11 @@
 
   /* selection overlay */
   .edit-rect{position:absolute;border:2px solid #4da3ff;border-radius:10px;pointer-events:auto;background:rgba(77,163,255,.06)}
-  .corner{position:absolute;width:14px;height:14px;border-radius:50%;background:#4da3ff;border:2px solid #0b2340}
-  .corner.tl{left:-9px;top:-9px}.corner.tr{right:-9px;top:-9px}.corner.bl{left:-9px;bottom:-9px}.corner.br{right:-9px;bottom:-9px}
+  .corner{position:absolute;width:14px;height:14px;border-radius:50%;background:#4da3ff;border:2px solid #0b2340;cursor:nwse-resize}
+  .corner.tl{left:-9px;top:-9px;cursor:nwse-resize}
+  .corner.tr{right:-9px;top:-9px;cursor:nesw-resize}
+  .corner.bl{left:-9px;bottom:-9px;cursor:nesw-resize}
+  .corner.br{right:-9px;bottom:-9px;cursor:nwse-resize}
 
   .hint{font-size:12px;color:var(--muted)}
   .pill{border:1px solid var(--border);padding:2px 8px;border-radius:999px;font-size:11px;color:var(--muted)}
@@ -101,7 +104,7 @@
 <body>
   <div class="app">
     <header>
-      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.6</span></h1>
+      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.8</span></h1>
       <div class="toolbar">
         <button id="btn-export-png" class="primary">Export PNG</button>
         <button id="btn-save-layout" title="Save your current field positions to localStorage">Save Layout</button>
@@ -197,7 +200,10 @@
           </div>
 
           <div id="selEdit" class="edit-rect" style="display:none">
-            <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+            <div class="corner tl" data-corner="tl"></div>
+            <div class="corner tr" data-corner="tr"></div>
+            <div class="corner bl" data-corner="bl"></div>
+            <div class="corner br" data-corner="br"></div>
           </div>
         </div>
       </div>
@@ -307,77 +313,53 @@
       .replace(/[^a-z0-9]/g,''); // drop spaces/underscores/dashes
   }
 
-// ------- CSV Loading (safe, no RegExp building) -------
-function normalizeKey(s){return String(s||'').toLowerCase().replace(/\.[^.]+$/,'').replace(/[^a-z0-9]/g,'');}
-
-// Pick delimiter by majority vote, no regex needed
-function detectDelimiter(firstLine){
-  const counts = {
-    ',': (firstLine.match(/,/g)||[]).length,
-    ';': (firstLine.match(/;/g)||[]).length,
-    '\t': (firstLine.match(/\t/g)||[]).length
-  };
-  // pick the delimiter with the highest count
-  return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0] || ',';
-}
-
-// Proper quoted CSV splitter (state machine)
-function splitCSVLine(line, delim){
-  const out = [];
-  let cur = '';
-  let inQ = false;
-  for (let i=0; i<line.length; i++){
-    const ch = line[i];
-    if (ch === '"'){
-      if (inQ && line[i+1] === '"'){ cur += '"'; i++; }
-      else { inQ = !inQ; }
-    } else if (ch === delim && !inQ){
-      out.push(cur); cur = '';
-    } else {
-      cur += ch;
-    }
+  // ------- CSV Loading (safe, no RegExp building) -------
+  function detectDelimiter(firstLine){
+    const counts = {
+      ',': (firstLine.match(/,/g)||[]).length,
+      ';': (firstLine.match(/;/g)||[]).length,
+      '\t': (firstLine.match(/\t/g)||[]).length
+    };
+    return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0].replace('\\t','\t') || ',';
   }
-  out.push(cur);
-  return out;
-}
-
-function parseCSV(text){
-  // Normalize line endings and strip BOM
-  text = String(text).replace(/^\uFEFF/, '').replace(/\r/g, '');
-  const lines = text.split('\n').filter(l => l.length);
-  if (!lines.length) return [];
-  const delim = detectDelimiter(lines[0]);
-  const headers = splitCSVLine(lines.shift(), delim).map(h => h.trim());
-
-  const rows = lines.map(line => {
-    const cells = splitCSVLine(line, delim);
-    const row = {};
-    headers.forEach((h,i)=> row[h] = (cells[i] ?? '').trim());
-    return row;
-  });
-
-  setDiag(`CSV parsed with "${delim}" — ${rows.length} rows`);
-  return rows;
-}
-
-q('#btn-load-csv').addEventListener('click',()=> q('#csvFile').click());
-q('#csvFile').addEventListener('change', ev=>{
-  const f = ev.target.files[0]; if(!f) return;
-  const fr = new FileReader();
-  fr.onload = () => {
-    try {
-      state.csvRows = parseCSV(fr.result);
-      state.rowIndex = 0;
-      setDiag(`Loaded ${state.csvRows.length} rows.`);
-      applyRow();
-    } catch (e){
-      console.error(e);
-      setDiag('CSV parse error. Check console for details.');
+  function splitCSVLine(line, delim){
+    const out = []; let cur=''; let inQ=false;
+    for (let i=0;i<line.length;i++){
+      const ch=line[i];
+      if (ch === '"'){
+        if (inQ && line[i+1] === '"'){ cur+='"'; i++; }
+        else { inQ = !inQ; }
+      } else if (ch === delim && !inQ){ out.push(cur); cur=''; }
+      else { cur += ch; }
     }
-  };
-  fr.readAsText(f);
-});
+    out.push(cur); return out;
+  }
+  function parseCSV(text){
+    text = String(text).replace(/^\uFEFF/, '').replace(/\r/g,''); // strip BOM + CR
+    const lines = text.split('\n').filter(l=>l.length);
+    if (!lines.length) return [];
+    const delim = detectDelimiter(lines[0]);
+    const headers = splitCSVLine(lines.shift(), delim).map(h=>h.trim());
+    const rows = lines.map(line=>{
+      const cells = splitCSVLine(line, delim);
+      const row={}; headers.forEach((h,i)=> row[h] = (cells[i]??'').trim());
+      return row;
+    });
+    setDiag(`CSV parsed with "${delim === '\t' ? 'tab' : delim}" — ${rows.length} rows`);
+    return rows;
+  }
 
+  q('#btn-load-csv').addEventListener('click',()=> q('#csvFile').click());
+  q('#csvFile').addEventListener('change', ev=>{
+    const f = ev.target.files[0]; if(!f) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      try {
+        state.csvRows = parseCSV(fr.result); state.rowIndex=0; setDiag(`Loaded ${state.csvRows.length} rows.`); applyRow();
+      } catch(e){ console.error(e); setDiag('CSV parse error.'); }
+    };
+    fr.readAsText(f);
+  });
 
   // ------- Mass Images (fuzzy keys) -------
   q('#imgFiles').addEventListener('change', ev=>{
@@ -390,7 +372,7 @@ q('#csvFile').addEventListener('change', ev=>{
       state.images.set(normalizeKey(base), url);
       added++;
     }
-    setDiag(\`Imported \${added} images. Matching by Art or Name (fuzzy).\`);
+    setDiag(`Imported ${added} images. Matching by Art or Name (fuzzy).`);
     applyRow();
   });
 
@@ -430,7 +412,6 @@ q('#csvFile').addEventListener('change', ev=>{
     renderFields();
     renderFaction();
 
-    // Art match: prefer Art column; else Name
     const artKeyRaw = pick(r,['Art','Artwork','Image','ArtFile']) || fldName.value || '';
     const variants = [ String(artKeyRaw).toLowerCase().replace(/\.[^.]+$/,''), normalizeKey(artKeyRaw) ];
     let hit=null; for(const v of variants){ if(state.images.has(v)){ hit=state.images.get(v); break; } }
@@ -487,7 +468,7 @@ q('#csvFile').addEventListener('change', ev=>{
   });
   window.addEventListener('mouseup', ()=> draggingArt=false);
 
-  // ------- Layout editing -------
+  // ------- Layout editing (with resize handles) -------
   const elements = { name:q('#name'), type:q('#type'), rules:q('#rules'), flavor:q('#flavor'), bMOV, bATK, bHP, badges };
   const selElement = q('#selElement');
   const posX = q('#posX'), posY=q('#posY'), posW=q('#posW'), posH=q('#posH');
@@ -525,15 +506,42 @@ q('#csvFile').addEventListener('change', ev=>{
     setDiag('Applied layout to '+selElement.value);
   });
 
-  // drag selected element
+  // Drag selected overlay to move
   let draggingSel=false, selStart={x:0,y:0}, elStart={x:0,y:0};
   selEdit.addEventListener('mousedown', e=>{
-    draggingSel=true; selStart={x:e.clientX, y:e.clientY}; const el = elements[selElement.value]; const b = boundsInStage(el); elStart={x:b.x, y:b.y}; e.preventDefault();
+    if (e.target.classList.contains('corner')) return; // corner handles handled separately
+    draggingSel=true; selStart={x:e.clientX, y:e.clientY};
+    const el = elements[selElement.value]; const b = boundsInStage(el); elStart={x:b.x, y:b.y}; e.preventDefault();
   });
   window.addEventListener('mousemove', e=>{
-    if(!draggingSel) return; const dx=e.clientX-selStart.x, dy=e.clientY-selStart.y; posX.value = Math.round(elStart.x+dx); posY.value = Math.round(elStart.y+dy); q('#applyLayout').click();
+    if(!draggingSel) return; const dx=e.clientX-selStart.x, dy=e.clientY-selStart.y;
+    posX.value = Math.round(elStart.x+dx); posY.value = Math.round(elStart.y+dy); q('#applyLayout').click();
   });
   window.addEventListener('mouseup', ()=> draggingSel=false);
+
+  // Resize via corner handles
+  let resizing=false, whichCorner=null, base={x:0,y:0,w:0,h:0}, start={x:0,y:0};
+  function onCornerDown(e){
+    whichCorner = e.target.getAttribute('data-corner');
+    const el = elements[selElement.value]; const b = boundsInStage(el);
+    base = {x:b.x, y:b.y, w:b.w, h:b.h}; start = {x:e.clientX, y:e.clientY};
+    resizing = true; e.preventDefault(); e.stopPropagation();
+  }
+  selEdit.querySelectorAll('.corner').forEach(c=> c.addEventListener('mousedown', onCornerDown));
+  window.addEventListener('mousemove', e=>{
+    if(!resizing) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    let x=base.x, y=base.y, w=base.w, h=base.h;
+    const min=20;
+    if (whichCorner==='br'){ w = Math.max(min, base.w + dx); h = Math.max(min, base.h + dy); }
+    if (whichCorner==='tr'){ w = Math.max(min, base.w + dx); h = Math.max(min, base.h - dy); y = base.y + (base.h - h); }
+    if (whichCorner==='bl'){ w = Math.max(min, base.w - dx); h = Math.max(min, base.h + dy); x = base.x + (base.w - w); }
+    if (whichCorner==='tl'){ w = Math.max(min, base.w - dx); h = Math.max(min, base.h - dy); x = base.x + (base.w - w); y = base.y + (base.h - h); }
+    posX.value=Math.round(x); posY.value=Math.round(y); posW.value=Math.round(w); posH.value=Math.round(h);
+    q('#applyLayout').click();
+  });
+  window.addEventListener('mouseup', ()=>{ resizing=false; });
 
   q('#toggleGuides').addEventListener('click', ()=>{
     state.guides = !state.guides; stage.style.outline = state.guides? '1px dashed #333' : 'none';
@@ -559,26 +567,29 @@ q('#csvFile').addEventListener('change', ev=>{
   function applyLayout(layout){
     if(!layout) return;
     const keys=['name','type','rules','flavor','bMOV','bATK','bHP','badges'];
-    for (const k of keys){ const L=layout[k]; const el = elements[k]; if(!L||!el) continue; el.style.left=L.left; el.style.top=L.top; el.style.width=L.width; el.style.height=L.height; }
+    for (const k of keys){
+      const L=layout[k]; const el = elements[k]; if(!L||!el) continue;
+      el.style.left=L.left; el.style.top=L.top; el.style.width=L.width; el.style.height=L.height;
+    }
     state.art = layout.art || state.art; artX.value=state.art.x; artY.value=state.art.y; artScale.value=state.art.scale*100; artPad.value=state.art.pad; applyArt();
     if(layout.frame){ frameTpl.style.opacity = layout.frame.opacity; frameTpl.style.zIndex = layout.frame.z; }
     syncInspector();
   }
 
   q('#btn-save-layout').addEventListener('click', ()=>{
-    const L=captureLayout(); localStorage.setItem('soa_layout_v66', JSON.stringify(L)); setDiag('Layout saved to browser storage.');
+    const L=captureLayout(); localStorage.setItem('soa_layout_v68', JSON.stringify(L)); setDiag('Layout saved to browser storage.');
   });
   q('#btn-load-layout').addEventListener('click', ()=>{
-    const raw = localStorage.getItem('soa_layout_v66') || localStorage.getItem('soa_layout_v64') || localStorage.getItem('soa_layout_v62');
+    const raw = localStorage.getItem('soa_layout_v68') || localStorage.getItem('soa_layout_v67') || localStorage.getItem('soa_layout_v66') || localStorage.getItem('soa_layout_v64');
     if(!raw){ setDiag('No saved layout.'); return; }
     applyLayout(JSON.parse(raw)); setDiag('Layout loaded.');
   });
-  q('#btn-reset-layout').addEventListener('click', ()=>{ localStorage.removeItem('soa_layout_v66'); localStorage.removeItem('soa_layout_v64'); localStorage.removeItem('soa_layout_v62'); location.reload(); });
+  q('#btn-reset-layout').addEventListener('click', ()=>{ ['soa_layout_v68','soa_layout_v67','soa_layout_v66','soa_layout_v64'].forEach(k=>localStorage.removeItem(k)); location.reload(); });
 
   // Export / Import JSON
   q('#btn-export-json').addEventListener('click', ()=>{
     const blob = new Blob([JSON.stringify(captureLayout(), null, 2)], {type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v66.json'; a.click();
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v68.json'; a.click();
   });
   q('#importJson').addEventListener('change', ev=>{
     const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ try{ applyLayout(JSON.parse(fr.result)); setDiag('Imported layout JSON.'); }catch(e){ setDiag('Invalid JSON.'); } }; fr.readAsText(f);
@@ -623,9 +634,7 @@ q('#csvFile').addEventListener('change', ev=>{
   }
   q('#sheetPreset').addEventListener('change', e=> applyPreset(e.target.value));
 
-  async function renderCardToImage(){
-    return await domToPng(stage);
-  }
+  async function renderCardToImage(){ return await domToPng(stage); }
 
   q('#buildSheet').addEventListener('click', async ()=>{
     const cols=+q('#sheetCols').value, rows=+q('#sheetRows').value, W=+q('#sheetW').value, H=+q('#sheetH').value, pad=+q('#sheetPad').value;
@@ -663,14 +672,13 @@ q('#csvFile').addEventListener('change', ev=>{
 
   // ------- Init -------
   function initDefaults(){
-    // ensure positioned elements have default absolute metrics so captureLayout works first time
     ['name','type','rules','flavor','badges','bMOV','bATK','bHP'].forEach(id=>{
       const el=q('#'+id); if(el && !el.style.position) el.style.position='absolute';
     });
   }
   initDefaults();
   renderFields(); renderFaction(); fitArtBox(); selElement.value='name'; syncInspector();
-  setDiag('Classic layout v6.6 loaded. CSV+Art+Frame fixes applied.');
+  setDiag('Classic layout v6.8 loaded. CSV+Art+Frame fixes applied. Badges can now be moved & resized individually.');
   </script>
 </body>
 </html>
