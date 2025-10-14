@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater (Classic Layout v6.2)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.3)</title>
 <style>
   :root{
     --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
@@ -78,12 +78,14 @@
   .hint{font-size:12px; color:var(--muted)}
   .pill{border:1px solid var(--border); padding:2px 8px; border-radius:999px; font-size:11px; color:var(--muted)}
   .sep{height:1px; background:var(--border); margin:8px -10px}
+  /* Sheet builder preview */
+  .sheet-preview{width:100%; aspect-ratio:1/1; background:#0d0d10; border:1px dashed #2b2b30; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--muted)}
 </style>
 </head>
 <body>
   <div class="app">
     <header>
-      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.2</span></h1>
+      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.3</span></h1>
       <div class="toolbar">
         <button id="btn-export-png" class="primary">Export PNG</button>
         <button id="btn-save-layout" title="Save your current field positions to localStorage">Save Layout</button>
@@ -205,7 +207,30 @@
         <div class="row"><label>X</label><input id="posX" type="number" value="24"><label>Y</label><input id="posY" type="number" value="18"></div>
         <div class="row"><label>W</label><input id="posW" type="number" value="696"><label>H</label><input id="posH" type="number" value="40"></div>
         <div class="row"><button id="applyLayout">Apply</button><button id="toggleGuides">Toggle Guides</button></div>
-        <div class="row hint">Drag the blue rectangle to move the selected element. Resize via W/H inputs.</div>
+        <div class="row"><label class="pill">Uniform layout mode</label><input id="uniformMode" type="checkbox" checked></div>
+        <div class="row hint">When enabled, any move/resize applies globally and will be used for every CSV row and in sheet export.</div>
+      </div>
+
+      <div class="section">
+        <h3>TTS Sheet Builder</h3>
+        <div class="row"><label>Preset</label>
+          <select id="sheetPreset">
+            <option value="custom">Custom</option>
+            <option value="tts10x7">TTS 10×7 (4096×4096)</option>
+            <option value="tts7x10">TTS 7×10 (4096×4096)</option>
+            <option value="a2_7x5">A2-ish 7×5 (5600×4000)</option>
+          </select>
+        </div>
+        <div class="row"><label>Cols</label><input id="sheetCols" type="number" value="10"> <label>Rows</label><input id="sheetRows" type="number" value="7"></div>
+        <div class="row"><label>Canvas W</label><input id="sheetW" type="number" value="4096"> <label>Canvas H</label><input id="sheetH" type="number" value="4096"></div>
+        <div class="row"><label>Cell Pad</label><input id="sheetPad" type="number" value="8"> <label>BG</label>
+          <select id="sheetBG"><option value="transparent">Transparent</option><option value="#111">#111</option><option value="#000">#000</option></select>
+        </div>
+        <div class="row"><label>Start @ row</label><input id="sheetStart" type="number" value="0"> <label>Count</label><input id="sheetCount" type="number" value="70"></div>
+        <div class="row"><label>Filename</label><input id="sheetName" type="text" value="SoA_TTS_10x7"></div>
+        <div class="row"><button id="buildSheet" class="primary">Build TTS Sheet (PNG)</button></div>
+        <div class="sheet-preview" id="sheetPreview">Sheet preview ready</div>
+        <div class="row small muted">Note: All cards render with the same size & layout. Warchiefs use the same frame.</div>
       </div>
 
       <div class="section">
@@ -512,7 +537,6 @@
 
   // Minimal DOM to PNG (no external libs)
   async function domToPng(node){
-    // Use SVG foreignObject trick
     const s = new XMLSerializer();
     const clone = node.cloneNode(true);
     // Remove edit overlay & handles from export
@@ -525,13 +549,67 @@
     const img = new Image();
     await new Promise(res=>{ img.onload=res; img.src=svgUrl; });
     const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d');
-    ctx.fillStyle='#111'; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0);
+    ctx.clearRect(0,0,w,h);
+    ctx.drawImage(img,0,0);
     return c.toDataURL('image/png');
   }
 
-  // Init
+  // ------- Sheet Builder -------
+  function applyPreset(val){
+    const cols=q('#sheetCols'), rows=q('#sheetRows'), w=q('#sheetW'), h=q('#sheetH'), name=q('#sheetName');
+    if(val==='tts10x7'){ cols.value=10; rows.value=7; w.value=4096; h.value=4096; name.value='SoA_TTS_10x7'; }
+    else if(val==='tts7x10'){ cols.value=7; rows.value=10; w.value=4096; h.value=4096; name.value='SoA_TTS_7x10'; }
+    else if(val==='a2_7x5'){ cols.value=7; rows.value=5; w.value=5600; h.value=4000; name.value='SoA_7x5_5600x4000'; }
+  }
+  q('#sheetPreset').addEventListener('change', e=> applyPreset(e.target.value));
+
+  async function renderCardToImage(){
+    // Ensure uniform layout for export (positions come from current DOM)
+    return await domToPng(stage);
+  }
+
+  q('#buildSheet').addEventListener('click', async ()=>{
+    const cols=+q('#sheetCols').value, rows=+q('#sheetRows').value, W=+q('#sheetW').value, H=+q('#sheetH').value, pad=+q('#sheetPad').value;
+    const start=+q('#sheetStart').value, count=+q('#sheetCount').value; const bg=q('#sheetBG').value; const fname=q('#sheetName').value||'SoA_TTS_Sheet';
+    const cellW = Math.floor((W - (cols+1)*pad)/cols), cellH = Math.floor((H - (rows+1)*pad)/rows);
+
+    // Canvas
+    const sheet=document.createElement('canvas'); sheet.width=W; sheet.height=H; const ctx=sheet.getContext('2d');
+    if(bg==='transparent'){ ctx.clearRect(0,0,W,H);} else { ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);}    
+
+    // Save current art transform to restore after each render
+    const savedArt={...state.art};
+
+    // Loop
+    let idx=start, placed=0;
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        if(placed>=count || idx>=state.csvRows.length) break;
+        state.rowIndex = idx; applyRow();
+        // Render card
+        /* Force stage to uniform export size by temporarily scaling to cell size */
+        const dataUrl = await renderCardToImage();
+        const img = await new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.src=dataUrl; });
+        const x = pad + c*(cellW+pad), y = pad + r*(cellH+pad);
+        // Fit image into cell while preserving aspect
+        const scale = Math.min(cellW/img.width, cellH/img.height);
+        const drawW = Math.round(img.width*scale), drawH = Math.round(img.height*scale);
+        const offX = x + Math.floor((cellW-drawW)/2), offY = y + Math.floor((cellH-drawH)/2);
+        ctx.drawImage(img, offX, offY, drawW, drawH);
+        idx++; placed++;
+      }
+    }
+
+    // Restore art transform
+    state.art = savedArt; applyArt();
+
+    // Download
+    const out = sheet.toDataURL('image/png');
+    const a=document.createElement('a'); a.href=out; a.download=fname+'.png'; a.click();
+    q('#sheetPreview').textContent = `Built ${placed} cards → ${fname}.png (${W}×${H})`;
+    setDiag(`Sheet built: ${placed} cards.`);
+  });
+
+  // ------- Init -------
   renderFields(); renderFaction(); fitArtBox(); selElement.value='name'; syncInspector();
-  setDiag('Classic layout v6.2 loaded. Frame template loader + full element movement restored.');
-  </script>
-</body>
-</html>
+  setDiag('Classic layout v6.3 loaded. Frame loader, global element movement, and TTS sheet builder are ready.');
