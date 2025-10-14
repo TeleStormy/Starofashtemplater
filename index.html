@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Card Templater — Clean Full Build (v4)</title>
+<title>Card Templater — Clean Full Build (v5)</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -49,11 +49,18 @@
 
   .toggler{border:1px solid var(--border);background:var(--panel2)}
   .toggler.active{background:#243226;border-color:#2f6b4f;color:#9ee2b9}
+
+  /* Toolbar under the preview canvas */
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .seg button{border:0;border-right:1px solid var(--border);background:var(--panel2)}
+  .seg button:last-child{border-right:0}
+  .seg button.active{background:#243226;color:#9ee2b9;border-color:#2f6b4f}
 </style>
 </head>
 <body>
 <header>
-  <strong>Card Templater — Clean Build (v4)</strong>
+  <strong>Card Templater — Clean Build (v5)</strong>
   <span class="badge">CSV ➜ Cards ➜ PNG/Sheet</span>
   <span class="badge">Drag/Resize Fields</span>
   <span class="badge err" id="err">⚠</span>
@@ -101,8 +108,25 @@
       <div>
         <label>Current Card Preview</label>
         <canvas id="cardCanvas" width="1024" height="1024"></canvas>
-        <div class="actions" style="margin-top:8px">
-          <button id="toggleEdit" class="toggler">✥ Edit Mode: OFF</button>
+
+        <!-- NEW: Tool Menu -->
+        <div class="toolbar" style="margin-top:8px">
+          <div class="seg" id="toolSeg">
+            <button data-tool="move" class="active">Move</button>
+            <button data-tool="resize">Resize</button>
+          </div>
+          <label class="small" style="margin-left:6px">Select Element</label>
+          <select id="selectEl">
+            <option value="">(auto)</option>
+            <option value="title">Title</option>
+            <option value="line">Type•Cost•Stats</option>
+            <option value="art">Art</option>
+            <option value="rules">Rules</option>
+            <option value="flavor">Flavor</option>
+            <option value="hp">HP</option>
+            <option value="mov">MOV</option>
+          </select>
+          <button id="toggleEdit" class="toggler" style="margin-left:auto">✥ Edit Mode: OFF</button>
           <button id="dlCard">Download This Card</button>
           <button id="nextCard">Next ▶</button>
         </div>
@@ -239,7 +263,8 @@ const state = {
   idx: 0,
   map: { id:'ID', name:'Name', faction:'Faction', type:'Type', cost:'Cost', atk:'ATK', hp:'HP', mov:'MOV', rules:'Rules', flavor:'Flavor', image:'Image' },
   edit:{enabled:false,dragging:false,selected:null,handle:null,orig:null,start:null},
-  frame:{img:null, alpha:1, enabled:false, above:false, src:null}
+  frame:{img:null, alpha:1, enabled:false, above:false, src:null},
+  tool:'move' // 'move' | 'resize'
 };
 
 /* ===== DOM refs ===== */
@@ -249,8 +274,7 @@ const $sheet = el('sheetCanvas'); const $sctx = $sheet.getContext('2d');
 
 /* ===== Utils ===== */
 function parseCSV(text){
-  // Normalize line breaks (CRLF, LF, or lone CR)
-  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n'); // Normalize line breaks
   const rows=[]; let cur='',row=[],inQ=false;
   for (let i=0;i<text.length;i++){
     const ch=text[i], nx=text[i+1];
@@ -267,10 +291,9 @@ function parseCSV(text){
   }
   if (cur.length || row.length){ row.push(cur); rows.push(row); }
   if (!rows.length) return [];
-  // Trim headers & strip BOM
   const headers=(rows.shift()||[]).map(h=>h.replace(/^\uFEFF/, '').trim());
   return rows
-    .filter(r=>r.length && r.some(x=>x!=='')) // non-empty rows
+    .filter(r=>r.length && r.some(x=>x!=='')) 
     .map(r=>Object.fromEntries(headers.map((h,i)=>[h,(r[i]??'').trim()])));
 }
 const loadImage = src => new Promise((res,rej)=>{ const img=new Image(); if(/^https?:/i.test(src)) img.crossOrigin='anonymous'; img.onload=()=>res(img); img.onerror=()=>rej(new Error('Image failed: '+src)); img.src=src; });
@@ -301,22 +324,17 @@ async function renderCard(card){
   const hpSize=+el('hpSize').value||38, hpX=+el('hpX').value||W-36-120, hpY=+el('hpY').value||H-36-56, hpW=+el('hpW').value||120, hpH=+el('hpH').value||56;
   const movSize=+el('movSize').value||30, movX=+el('movX').value||32, movY=+el('movY').value||H-36-46, movW=+el('movW').value||110, movH=+el('movH').value||46;
 
-  // Background + palette
   const palSel=el('palette').value; const colors=palSel==='auto'?factionColors(card[state.map.faction]):factionColors(palSel);
   $ctx.fillStyle=colors.base; $ctx.fillRect(0,0,W,H);
 
-  // Optional texture
   const bgUrl=el('bgUrl').value.trim();
   if(bgUrl){ try{ const img=await loadImage(bgUrl); const r=fitMode(img.width,img.height,W,H,'cover'); $ctx.globalAlpha=.18; $ctx.drawImage(img,r.x,r.y,r.w,r.h); $ctx.globalAlpha=1; }catch(e){} }
 
-  // Frame gradient base
   $ctx.save(); $ctx.globalAlpha=frameOpacity; roundRect($ctx,border/2,border/2,W-border,H-border,radius); $ctx.clip();
   const grad=$ctx.createLinearGradient(0,0,W,H); grad.addColorStop(0,colors.frame); grad.addColorStop(1,'#1a1a1a'); $ctx.fillStyle=grad; $ctx.fillRect(0,0,W,H); $ctx.restore();
 
-  // Template overlay UNDER text
   if(state.frame.enabled && state.frame.img && !state.frame.above){ $ctx.save(); $ctx.globalAlpha=state.frame.alpha; $ctx.drawImage(state.frame.img,0,0,W,H); $ctx.restore(); }
 
-  // Text + art
   const name=(''+(card[state.map.name]||'')); $ctx.fillStyle='#f3efe8';
   $ctx.font=`700 ${titleSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`; $ctx.textAlign='left';
   $ctx.fillText(truncToWidth(name, W-titleX-32, $ctx), titleX, titleY);
@@ -327,7 +345,6 @@ async function renderCard(card){
   $ctx.fillStyle='#d7d3cf'; $ctx.font=`600 ${lineSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`;
   $ctx.fillText(truncToWidth(line, W-lineX-32, $ctx), lineX, lineY);
 
-  // Art box
   const artRect={x:padX,y:artTop,w:W-2*padX,h:artHeight};
   const imgField=(''+(card[state.map.image]||'')); const base=(el('imgBase').value||'').trim();
   const artURL = imgField ? (/^https?:\/\//i.test(imgField) || /^blob:/.test(imgField) ? imgField : (base? (base.replace(/\/+$/,'')+'/'+imgField.replace(/^\/+/,'') ): imgField)) : '';
@@ -336,14 +353,12 @@ async function renderCard(card){
     catch(e){ placeholder($ctx,artRect.x,artRect.y,artRect.w,artRect.h); }
   } else { placeholder($ctx,artRect.x,artRect.y,artRect.w,artRect.h); }
 
-  // Rules + Flavor
   $ctx.fillStyle='#f1eee8'; $ctx.font=`500 ${rulesSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`;
   multiline($ctx, (''+(card[state.map.rules]||'')), rulesX, rulesTop, rulesW, rulesSize*1.25);
 
   $ctx.fillStyle='#c9c4be'; $ctx.font=`italic 500 ${flavorSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`;
   multiline($ctx, (''+(card[state.map.flavor]||'')), flavorX, flavorTop, flavorW, flavorSize*1.3);
 
-  // HP badge
   if(hp){
     const rr=Math.min(hpH,hpW)/2.4; $ctx.shadowColor=colors.accent; $ctx.shadowBlur=18;
     roundRect($ctx,hpX,hpY,hpW,hpH,rr); $ctx.fillStyle='#151515cc'; $ctx.fill(); $ctx.shadowBlur=0;
@@ -351,7 +366,6 @@ async function renderCard(card){
     $ctx.fillText(hp, hpX+hpW/2, hpY+hpH*0.72);
   }
 
-  // MOV badge
   if(mov){
     const rr=Math.min(movH,movW)/2.6; $ctx.shadowColor='#6db8ff'; $ctx.shadowBlur=16;
     roundRect($ctx,movX,movY,movW,movH,rr); $ctx.fillStyle='#0f141bcc'; $ctx.fill(); $ctx.shadowBlur=0;
@@ -359,13 +373,10 @@ async function renderCard(card){
     $ctx.fillText(mov, movX+movW/2, movY+movH*0.72);
   }
 
-  // Watermark
   const wm=el('watermark').value.trim(); if(wm){ $ctx.fillStyle='#b9b4ad'; $ctx.globalAlpha=.75; $ctx.font=`600 16px system-ui,Segoe UI,Roboto,Helvetica,Arial`; $ctx.textAlign='center'; $ctx.fillText(wm, W/2, H-12); $ctx.globalAlpha=1; }
 
-  // Template overlay ABOVE text
   if(state.frame.enabled && state.frame.img && state.frame.above){ $ctx.save(); $ctx.globalAlpha=state.frame.alpha; $ctx.drawImage(state.frame.img,0,0,W,H); $ctx.restore(); }
 
-  // Edit overlay
   if(el('editMode').checked){
     drawOverlay(W,H,artRect,{
       title:{x:titleX,y:titleY}, line:{x:lineX,y:lineY},
@@ -382,23 +393,32 @@ async function renderCard(card){
 /* Overlay helpers */
 function drawOverlay(W,H,artRect,blocks){
   const ctx=$ctx;
-  // grid
   ctx.save(); ctx.globalCompositeOperation='destination-over'; ctx.globalAlpha=.32; ctx.strokeStyle='#ffffff22';
   const step=Math.max(8,Math.floor(W/64));
   for(let x=0;x<=W;x+=step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
   for(let y=0;y<=H;y+=step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
   ctx.restore();
 
-  // draggable boxes
   const boxes=[['art',artRect],['rules',blocks.rules],['flavor',blocks.flavor],['hp',blocks.hp],['mov',blocks.mov]];
-  boxes.forEach(([k,r])=>{ ctx.strokeStyle = state.edit.selected===k? '#7fd3a8':'#ffb84d'; ctx.lineWidth=2; ctx.strokeRect(r.x,r.y,r.w,r.h); drawHandles(ctx,r); label(ctx,r.x,r.y-6,k); });
+  boxes.forEach(([k,r])=>{
+    ctx.strokeStyle = state.edit.selected===k? '#7fd3a8':'#ffb84d';
+    ctx.lineWidth=2; ctx.strokeRect(r.x,r.y,r.w,r.h);
+    drawCornerDots(ctx,r);
+    label(ctx,r.x,r.y-6,k+(state.tool==='resize'?' (resize)':''));
+  });
   const pts=[['title',blocks.title],['line',blocks.line]];
-  pts.forEach(([k,p])=>{ ctx.fillStyle = state.edit.selected===k? '#7fd3a8':'#ff6b6b'; ctx.beginPath(); ctx.arc(p.x, p.y-10, 6, 0, Math.PI*2); ctx.fill(); label(ctx,p.x+8,p.y-16,k); });
+  pts.forEach(([k,p])=>{
+    ctx.fillStyle = state.edit.selected===k? '#7fd3a8':'#ff6b6b';
+    ctx.beginPath(); ctx.arc(p.x, p.y-10, 6, 0, Math.PI*2); ctx.fill();
+    label(ctx,p.x+8,p.y-16,k+(state.tool==='move'?' (move)':''));
+  });
 }
-function drawHandles(ctx,r){ const s=8; const corners=[[r.x,r.y],[r.x+r.w,r.y],[r.x,r.y+r.h],[r.x+r.w,r.y+r.h]]; ctx.fillStyle='#111'; ctx.strokeStyle='#aaa'; corners.forEach(([x,y])=>{ ctx.fillRect(x-s/2,y-s/2,s,s); ctx.strokeRect(x-s/2,y-s/2,s,s); }); }
+function drawCornerDots(ctx,r){ const s=6; const c=[[r.x,r.y],[r.x+r.w,r.y],[r.x,r.y+r.h],[r.x+r.w,r.y+r.h]];
+  c.forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y, s, 0, Math.PI*2); ctx.fillStyle='#111'; ctx.fill(); ctx.strokeStyle='#aaa'; ctx.stroke(); });
+}
 function label(ctx,x,y,t){ ctx.save(); ctx.fillStyle='#ddd'; ctx.font='12px system-ui,Segoe UI,Roboto'; ctx.fillText(t,x,y); ctx.restore(); }
 
-/* Dragging */
+/* Tool-aware hit testing */
 function currentPositions(){
   const W=$canvas.width, H=$canvas.height;
   return {
@@ -415,52 +435,77 @@ function currentPositions(){
 function hitTest(x,y){
   const P=currentPositions();
   const inRect=r=>x>=r.x && x<=r.x+r.w && y>=r.y && y<=r.y+r.h;
-  const near=(cx,cy)=>Math.abs(x-cx)<=10 && Math.abs(y-cy)<=10;
+  const near=(cx,cy,rad=10)=>Math.abs(x-cx)<=rad && Math.abs(y-cy)<=rad;
   const corners=r=>[['tl',r.x,r.y],['tr',r.x+r.w,r.y],['bl',r.x,r.y+r.h],['br',r.x+r.w,r.y+r.h]];
+
+  // Respect element dropdown (if set)
+  const only = el('selectEl').value || null;
+
+  // For rectangles
   for (const [key,r] of Object.entries({art:P.art,rules:P.rules,flavor:P.flavor,hp:P.hp,mov:P.mov})){
-    for (const [h,cx,cy] of corners(r)){ if(near(cx,cy)) return {type:'rect', key, handle:h}; }
-    if (inRect(r)) return {type:'rect', key, handle:'move'};
+    if (only && key!==only) continue;
+    // Corner handles for resize tool
+    for (const [h,cx,cy] of corners(r)){ if(near(cx,cy,10)) return {type:'rect', key, handle:h}; }
+    // Move handle = inside rect, but only when tool is 'move'
+    if (state.tool==='move' && inRect(r)) return {type:'rect', key, handle:'move'};
   }
+
+  // Points (title/line) — always move, never resize
   for (const [key,p] of Object.entries({title:P.title,line:P.line})){
+    if (only && key!==only) continue;
     if ((x-p.x)**2 + (y-(p.y-10))**2 <= 81) return {type:'point', key};
   }
   return null;
 }
 function snapPx(v){ return el('snap').checked ? Math.round(v/8)*8 : v; }
 
+/* Mouse handling with tool modes */
 $canvas.addEventListener('mousedown',e=>{
   if (!el('editMode').checked) return;
   const r=$canvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
-  const hit=hitTest(x,y); if(!hit) return;
+  const hit=hitTest(x,y);
+  if(!hit) return;
+  // Enforce tool rules: in resize mode, only accept corner handles; in move mode, accept point or move
+  if(state.tool==='resize' && !(hit.type==='rect' && hit.handle!=='move')) return;
+  if(state.tool==='move' && hit.type==='rect' && hit.handle!=='move') return; // ignore corner when in move
   state.edit.dragging=true; state.edit.selected=hit.key; state.edit.handle=hit; state.edit.start={x,y}; state.edit.orig=currentPositions(); e.preventDefault();
 });
 $canvas.addEventListener('mousemove',e=>{
   const r=$canvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
+
+  // Cursor hints
   if (el('editMode').checked && !state.edit.dragging){
     const hit=hitTest(x,y);
     if(hit){
       if(hit.type==='point') $canvas.style.cursor='grab';
       else if(hit.type==='rect'){
-        const h=hit.handle; $canvas.style.cursor = h==='move'?'move' : (h==='tl'||h==='br'?'nwse-resize':'nesw-resize');
+        const h=hit.handle;
+        if (state.tool==='move' && h==='move') $canvas.style.cursor='move';
+        else if (state.tool==='resize' && h!=='move') $canvas.style.cursor=(h==='tl'||h==='br')?'nwse-resize':'nesw-resize';
+        else $canvas.style.cursor='default';
       }
     } else $canvas.style.cursor='default';
   }
+
   if (!el('editMode').checked || !state.edit.dragging) return;
   const dx=x-state.edit.start.x, dy=y-state.edit.start.y; const P=state.edit.orig; const h=state.edit.handle;
   const set=(id,val)=>{ el(id).value=Math.max(0,snapPx(val)); };
-  if (h.type==='point'){
+
+  if (h.type==='point'){ // title / line move
     if (h.key==='title'){ set('tTitleX', P.title.x+dx); set('tTitleY', P.title.y+dy); }
     else { set('tLineX', P.line.x+dx); set('tLineY', P.line.y+dy); }
   } else if (h.type==='rect'){
     const base = h.key==='art'?P.art : h.key==='rules'?P.rules : h.key==='flavor'?P.flavor : h.key==='hp'?P.hp : P.mov;
-    if (h.handle==='move'){
+
+    if (state.tool==='move' && h.handle==='move'){
       if (h.key==='art'){ set('padX', base.x+dx); set('artTop', base.y+dy); }
       else if (h.key==='rules'){ set('tRulesX', base.x+dx); set('tRulesTop', base.y+dy); }
       else if (h.key==='flavor'){ set('tFlavorX', base.x+dx); set('tFlavorTop', base.y+dy); }
       else if (h.key==='hp'){ set('hpX', base.x+dx); set('hpY', base.y+dy); }
       else if (h.key==='mov'){ set('movX', base.x+dx); set('movY', base.y+dy); }
-    } else {
-      // corner resize
+    }
+
+    if (state.tool==='resize' && h.handle!=='move'){
       let nx=base.x, ny=base.y, nw=base.w, nh=base.h;
       if (h.handle==='tl'){ nx=base.x+dx; ny=base.y+dy; nw=base.w-dx; nh=base.h-dy; }
       if (h.handle==='tr'){ ny=base.y+dy; nw=base.w+dx; nh=base.h-dy; }
@@ -470,6 +515,7 @@ $canvas.addEventListener('mousemove',e=>{
       if (h.key==='flavor'){ set('tFlavorX',nx); set('tFlavorTop',ny); set('tFlavorWidth',Math.max(40,nw)); set('tFlavorHeight',Math.max(40,nh)); }
       if (h.key==='hp'){ set('hpX',nx); set('hpY',ny); set('hpW',Math.max(32,nw)); set('hpH',Math.max(24,nh)); }
       if (h.key==='mov'){ set('movX',nx); set('movY',ny); set('movW',Math.max(32,nw)); set('movH',Math.max(24,nh)); }
+      if (h.key==='art'){ set('padX',nx); set('artTop',ny); set('artHeight',Math.max(40,nh)); /* width from padX */ }
     }
   }
   if (state.cards.length) renderCard(state.cards[state.idx]);
@@ -576,8 +622,19 @@ function makePrompt(c){
   return { name, prompt: `${name} — ${type}. ${flavor}. ${style}. palette: ${palette}.` };
 }
 
-/* ===== Wiring (extra diagnostics so clicks always show) ===== */
-// Import CSV (full)
+/* ===== Wiring ===== */
+// Tool segment buttons
+document.querySelectorAll('#toolSeg button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#toolSeg button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    state.tool = btn.dataset.tool;
+    setDiag('Tool: '+state.tool);
+  });
+});
+el('selectEl').addEventListener('change',()=>{ state.edit.selected = el('selectEl').value || null; if(state.cards.length) renderCard(state.cards[state.idx]); });
+
+// CSV + preview + images
 el('loadCSV').addEventListener('click', async ()=>{
   setDiag('Import CSV: clicked');
   try{
@@ -592,17 +649,10 @@ el('loadCSV').addEventListener('click', async ()=>{
         el('csvFile').addEventListener('change', once);
         el('csvFile').click();
       });
-    } else {
-      await importCSV(false);
-    }
+    } else { await importCSV(false); }
     setDiag('Import CSV: done. Rows='+state.cards.length);
-  }catch(e){
-    setDiag('Import CSV: ERROR '+e.message);
-    alert('Import CSV failed: '+e.message);
-  }
+  }catch(e){ setDiag('Import CSV: ERROR '+e.message); alert('Import CSV failed: '+e.message); }
 });
-
-// Preview first row only
 el('previewCSV').addEventListener('click', async ()=>{
   setDiag('Preview CSV: clicked');
   try{
@@ -617,39 +667,24 @@ el('previewCSV').addEventListener('click', async ()=>{
         el('csvFile').addEventListener('change', once);
         el('csvFile').click();
       });
-    } else {
-      await importCSV(true);
-    }
+    } else { await importCSV(true); }
     setDiag('Preview CSV: rendered first row (rows='+state.cards.length+')');
-  }catch(e){
-    setDiag('Preview CSV: ERROR '+e.message);
-    alert('Preview failed: '+e.message);
-  }
+  }catch(e){ setDiag('Preview CSV: ERROR '+e.message); alert('Preview failed: '+e.message); }
 });
-
-// Mass import local images
 el('importImages').addEventListener('click', ()=>{
   setDiag('Mass Import: picker open…');
-  const input=el('imgFiles');
-  if(!input){ alert('Missing hidden image input'); setDiag('Mass Import: missing input'); return; }
-  input.value='';
-  input.click();
+  const input=el('imgFiles'); if(!input){ alert('Missing hidden image input'); setDiag('Mass Import: missing input'); return; }
+  input.value=''; input.click();
 });
 el('imgFiles').addEventListener('change', async (e)=>{
-  try{
-    const files=[...e.target.files];
-    if(!files.length){ setDiag('Mass Import: cancelled'); return; }
-    await attachLocalImages(files);
-    setDiag('Mass Import: attached '+files.length);
-  }catch(err){
-    setDiag('Mass Import: ERROR '+err.message);
-    alert('Failed to import images: '+err.message);
-  }
+  try{ const files=[...e.target.files]; if(!files.length){ setDiag('Mass Import: cancelled'); return; } await attachLocalImages(files); setDiag('Mass Import: attached '+files.length); }
+  catch(err){ setDiag('Mass Import: ERROR '+err.message); alert('Failed to import images: '+err.message); }
 });
 
 ['outSize','palette','border','radius','frameOpacity','bgUrl','padX','artTop','artHeight','artFit','tTitleSize','tTitleX','tTitleY','tLineSize','tLineX','tLineY','tRulesSize','tRulesX','tRulesTop','tRulesWidth','tRulesHeight','tFlavorSize','tFlavorX','tFlavorTop','tFlavorWidth','tFlavorHeight','hpSize','hpX','hpY','hpW','hpH','movSize','movX','movY','movW','movH','watermark']
   .forEach(id=>{ const n=el(id); if(n) n.addEventListener('input',()=>{ if(state.cards.length) renderCard(state.cards[state.idx]); }); });
 
+// Edit mode toggle
 el('editMode').addEventListener('change',()=>{
   const b=el('toggleEdit'); b.classList.toggle('active', el('editMode').checked);
   b.textContent = el('editMode').checked ? '✥ Edit Mode: ON' : '✥ Edit Mode: OFF';
