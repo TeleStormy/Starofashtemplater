@@ -3,768 +3,811 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Card Templater — Clean Full Build (v6)</title>
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
+<title>Star of Ash — Card Templater v6.1</title>
 <style>
   :root{
-    --bg:#0b0b0c; --panel:#151517; --panel2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
-    --accent:#c74634; --border:#2b2b30; --ok:#57d38a; --warn:#ffb84d; --info:#9ad4ff;
+    --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#a8a3a0;
+    --accent:#c0392b; --ash:#2b2b30; --blood:#8a1d1d; --flame:#b8571b; --border:#2b2b30; --ok:#57d38a; --warn:#ffb84d; --bad:#ff6b6b;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
-  header{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#0b0b0ce6;z-index:10}
-  header strong{font-weight:700}
-  header .badge{padding:2px 8px;border:1px solid var(--border);border-radius:999px;background:var(--panel2);color:var(--muted);font-size:12px}
-  header .err{display:none;background:#3a2d1d;color:var(--warn);border-color:#594223}
-  .diagbar{position:sticky;top:48px;z-index:9;padding:6px 14px;background:#0d1218;border-bottom:1px solid #0f1a22;color:var(--info);font:12px/1.3 system-ui}
-  .diagbar .label{opacity:.8;margin-right:8px;color:#7fbaf0}
+  body{margin:0;background:radial-gradient(1000px 700px at 70% 10%, rgba(200,60,40,.08), transparent 50%),
+                 radial-gradient(1200px 900px at 15% 90%, rgba(255,255,255,.03), transparent 60%), var(--bg);
+       color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{display:grid;grid-template-columns:340px 1fr;gap:14px;height:100%;}
+  header{grid-column:1/-1;padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0));position:sticky;top:0;z-index:10}
+  header h1{font-size:18px;margin:0;font-weight:600;letter-spacing:.4px}
+  header .tag{padding:3px 8px;border:1px solid var(--border);border-radius:8px;color:var(--muted)}
+  .left{padding:12px;overflow:auto;border-right:1px solid var(--border);background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0))}
+  .section{border:1px solid var(--border);background:var(--panel);border-radius:14px;margin-bottom:12px}
+  .section h2{margin:0;padding:10px 12px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--border);}
+  .section .body{padding:10px 12px;display:grid;gap:8px}
+  label{font-size:12px;color:var(--muted)}
+  input[type="text"], input[type="number"], select, textarea{width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:10px}
+  input[type="file"]{width:100%}
+  button{background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:10px;cursor:pointer}
+  button.primary{background:var(--accent);border-color:#a92f22}
+  button.ghost{background:transparent}
+  .row{display:flex;gap:8px;align-items:center}
+  .row > *{flex:1}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .right{padding:12px;overflow:auto}
+  .board{display:grid;grid-template-columns:repeat(2, minmax(300px, 1fr)); gap:12px}
+  .cardPanel,.sheetPanel{border:1px solid var(--border);background:var(--panel);border-radius:14px}
+  .cardPanel h2,.sheetPanel h2{margin:0;padding:10px 12px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--border)}
+  .canvasWrap{position:relative;padding:10px}
+  canvas{background:#111;border:1px dashed var(--ash);border-radius:12px;max-width:100%}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-weight:600;border:1px solid var(--border);font-size:12px}
+  .badge.flame{background:rgba(184,87,27,.15)}
+  .badge.blood{background:rgba(138,29,29,.15)}
+  .badge.ash{background:rgba(43,43,48,.25)}
+  .muted{color:var(--muted);font-size:12px}
+  .help{font-size:12px;color:var(--muted)}
+  .hr{height:1px;background:var(--border);margin:6px 0}
 
-  main{display:grid;grid-template-columns:minmax(400px,560px) 1fr;align-items:start;gap:16px;padding:14px;max-width:1900px;margin:0 auto}
-  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;overflow:hidden}
-  .card h2{margin:0;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;letter-spacing:.35px;color:#d9d6d3;text-transform:uppercase}
-  .card .body{padding:12px}
+  /* Draggable control — large center grab + corners */
+  .handle{position:absolute;border:1px dashed #7a7a80;border-radius:8px;pointer-events:none}
+  .handle .grab{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--border);display:grid;place-items:center;font-size:11px;color:var(--muted);pointer-events:auto;cursor:move}
+  .handle .dot{position:absolute;width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid var(--border);pointer-events:auto}
+  .handle .dot.tl{left:-7px;top:-7px;cursor:nwse-resize}
+  .handle .dot.tr{right:-7px;top:-7px;cursor:nesw-resize}
+  .handle .dot.bl{left:-7px;bottom:-7px;cursor:nesw-resize}
+  .handle .dot.br{right:-7px;bottom:-7px;cursor:nwse-resize}
 
-  label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
-  input[type="text"],input[type="number"],select,textarea{
-    width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:9px 10px;outline:none;font:inherit
-  }
-  textarea{min-height:70px;resize:vertical}
-  .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  /* Modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:100}
+  .modal.show{display:flex}
+  .modal .card{width:min(720px,92vw);background:var(--panel);border:1px solid var(--border);border-radius:16px;box-shadow:0 20px 60px #0007}
+  .modal header{position:unset;border-bottom:1px solid var(--border)}
+  .modal .content{padding:12px}
 
-  .actions{display:flex;flex-wrap:wrap;gap:8px}
-  button{background:#232328;color:var(--text);border:1px solid var(--border);padding:8px 12px;border-radius:12px;cursor:pointer}
-  button.primary{background:linear-gradient(180deg,#c74634,#9f2a1b);border-color:#7f1e13}
-  button.ok{background:#1d3a28;border-color:#23583b}
-  button.warn{background:#3a2d1d;border-color:#594223}
+  .pill{border:1px solid var(--border);border-radius:999px;padding:4px 10px;color:var(--muted);font-size:12px}
 
-  canvas{display:block;max-width:100%;background:#111;border-radius:12px;border:1px solid #000}
-  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
-  .thumb{background:var(--panel2);border:1px dashed var(--border);border-radius:12px;padding:8px}
-  .small{font-size:12px;color:var(--muted)}
-  .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace}
+  /* Deck list */
+  .deck{display:grid;grid-template-columns:1fr auto;gap:8px;max-height:200px;overflow:auto}
+  .deck .item{display:grid;grid-template-columns:1fr 32px;align-items:center;gap:8px;border:1px solid var(--border);padding:6px 8px;border-radius:8px;background:var(--panel-2)}
+  .deck .item button{padding:4px 6px}
 
-  .toggler{border:1px solid var(--border);background:var(--panel2)}
-  .toggler.active{background:#243226;border-color:#2f6b4f;color:#9ee2b9}
-
-  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-  .seg{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden}
-  .seg button{border:0;border-right:1px solid var(--border);background:var(--panel2)}
-  .seg button:last-child{border-right:0}
-  .seg button.active{background:#243226;color:#9ee2b9;border-color:#2f6b4f}
+  code.inline{background:rgba(255,255,255,.06);padding:2px 6px;border-radius:6px;border:1px solid var(--border)}
 </style>
 </head>
 <body>
-<header>
-  <strong>Card Templater — Clean Build (v6)</strong>
-  <span class="badge">CSV ➜ Cards ➜ PNG/Sheet</span>
-  <span class="badge">Move/Resize Tools</span>
-  <span class="badge err" id="err">⚠</span>
-</header>
-<div class="diagbar"><span class="label">Diagnostics:</span><span id="diag">(ready)</span></div>
+  <header>
+    <h1>Star of Ash — Card Templater <span class="tag">v6.1</span></h1>
+    <span class="pill">Fixes: CSV import · Mass image import · MOV badge · 10×7 TTS sheet · Preview name · Big drag handle · Save/Load layout</span>
+  </header>
 
-<main>
-  <!-- LEFT: DATA + CONTROLS -->
-  <section class="card">
-    <h2>1) Data</h2>
-    <div class="body">
-      <div class="grid2">
-        <div>
-          <label>Load CSV (UTF-8, comma)</label>
-          <input id="csvFile" type="file" accept=".csv" />
-        </div>
-        <div>
-          <label>Image Base URL (optional)</label>
-          <input id="imgBase" type="text" placeholder="https://.../art/" />
-        </div>
-      </div>
-
-      <div class="row">
-        <div>
-          <label>Art Filename Mode</label>
-          <select id="imgMode">
-            <option value="csv">Use CSV “Image” field</option>
-            <option value="name">From Name + extension</option>
-          </select>
-        </div>
-        <div>
-          <label>When “From Name” → Extension</label>
-          <select id="imgExt">
-            <option value="png">.png</option>
-            <option value="jpg">.jpg</option>
-            <option value="webp">.webp</option>
-          </select>
-        </div>
-        <div>
-          <label>Slug Style</label>
-          <select id="imgSlug">
-            <option value="tight">letters+numbers (no spaces)</option>
-            <option value="dashes">lowercase-with-dashes</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="actions" style="margin-top:8px">
-        <button id="loadCSV" class="primary">Import CSV</button>
-        <button id="previewCSV">Preview First Card</button>
-        <button id="importImages" class="ok">Mass Import Images</button>
-        <label class="small"><input id="overwriteLocal" type="checkbox"/> Prefer local images (override CSV if not a full URL)</label>
-        <input id="imgFiles" type="file" accept="image/*" multiple webkitdirectory directory style="display:none" />
-      </div>
-      <div id="importInfo" class="small" style="margin-top:6px;color:#c9c4be"></div>
-
-      <div class="small" style="margin-top:10px">
-        Tip: Headers auto-detected: <span class="mono">ID, Name, Faction, Type, Cost, ATK, HP, MOV, Rules, Flavor, Image</span>.  
-        If <span class="mono">Image</span> is empty, choose “From Name + extension” above.
-      </div>
-
-      <label style="margin-top:10px">2) Field Mapping</label>
-      <div id="mapGrid" class="grid2"></div>
-    </div>
-  </section>
-
-  <!-- RIGHT: PREVIEW -->
-  <section class="card" style="grid-row:span 3">
-    <h2>Preview</h2>
-    <div class="body" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div>
-        <label>Current Card Preview</label>
-        <canvas id="cardCanvas" width="1024" height="1024"></canvas>
-
-        <!-- Toolbar -->
-        <div class="toolbar" style="margin-top:8px">
-          <div class="seg" id="toolSeg">
-            <button data-tool="move" class="active">Move</button>
-            <button data-tool="resize">Resize</button>
+  <div class="wrap">
+    <div class="left">
+      <div class="section">
+        <h2>1) Data Import</h2>
+        <div class="body">
+          <div class="grid">
+            <div>
+              <label>Load Cards CSV</label>
+              <input id="csvFile" type="file" accept=".csv" />
+            </div>
+            <div>
+              <label>Mass Import Images (folder)</label>
+              <input id="imgFolder" type="file" webkitdirectory directory multiple />
+            </div>
           </div>
-          <label class="small" style="margin-left:6px">Select Element</label>
-          <select id="selectEl">
-            <option value="">(auto)</option>
-            <option value="title">Title</option>
-            <option value="type">Unit/Type</option>
-            <option value="art">Art</option>
-            <option value="rules">Rules</option>
-            <option value="atk">ATK</option>
-            <option value="hp">HP</option>
-            <option value="mov">MOV</option>
-            <option value="cost">Cost</option>
-          </select>
-          <button id="toggleEdit" class="toggler" style="margin-left:auto">✥ Edit Mode: OFF</button>
-          <button id="dlCard">Download This Card</button>
-          <button id="nextCard">Next ▶</button>
-        </div>
-
-        <!-- Save/Load layout -->
-        <div class="actions" style="margin-top:8px">
-          <button id="saveLayout" class="ok">Save Layout (JSON)</button>
-          <button id="loadLayout" class="warn">Load Layout</button>
-          <input id="layoutFile" type="file" accept="application/json" style="display:none">
-        </div>
-      </div>
-      <div>
-        <label>Sheet Preview — TTS 10×7 (4096×4096)</label>
-        <canvas id="sheetCanvas" width="4096" height="4096"></canvas>
-        <div class="actions" style="margin-top:8px">
-          <button id="buildSheet" class="primary">Build TTS Sheet</button>
-          <button id="dlSheet">Download Sheet PNG</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- TEMPLATE & STYLE -->
-  <section class="card">
-    <h2>3) Template & Style</h2>
-    <div class="body">
-      <div class="row">
-        <div><label>Output Size</label>
-          <select id="outSize">
-            <option value="square">1:1 — 1024×1024</option>
-            <option value="warchief">War Chief — 1024×1536</option>
-          </select>
-        </div>
-        <div><label>Faction Palette</label>
-          <select id="palette">
-            <option value="auto">Auto by Faction</option>
-            <option value="flame">Flame</option>
-            <option value="blood">Blood</option>
-            <option value="ash">Ash</option>
-          </select>
-        </div>
-        <div><label>Border</label><input id="border" type="number" value="16" min="0" max="64"/></div>
-        <div><label>Corner Radius</label><input id="radius" type="number" value="28" min="0" max="64"/></div>
-        <div><label>Frame Opacity</label><input id="frameOpacity" type="number" value="0.85" step="0.05" min="0" max="1"/></div>
-        <div><label>Watermark (bottom center)</label><input id="watermark" type="text" value="© Star of Ash TCG"/></div>
-      </div>
-
-      <label>Background Texture (optional URL)</label>
-      <input id="bgUrl" type="text" placeholder="https://.../texture.png" />
-
-      <label style="margin-top:8px">Frame Overlay (template)</label>
-      <div class="row">
-        <input type="file" id="frameFile" accept="image/*"/>
-        <input id="frameUrl" type="text" placeholder="https://.../frame.png (optional)"/>
-        <input id="frameAlpha" type="number" value="1" step="0.05" min="0" max="1"/>
-        <label class="small"><input id="useFrame" type="checkbox"/> Use Overlay</label>
-        <label class="small"><input id="frameAbove" type="checkbox"/> Draw Above Text</label>
-        <button id="clearFrame">Clear</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- LIVE TEMPLATE EDITOR -->
-  <section class="card" style="grid-column:1 / span 2">
-    <h2>4) Live Template Editor</h2>
-    <div class="body">
-      <div class="row">
-        <div><label>Art Fit</label><select id="artFit"><option value="cover">Cover</option><option value="contain">Contain</option></select></div>
-        <div><label>Art Top</label><input id="artTop" type="number" value="210"/></div>
-        <div><label>Art Height</label><input id="artHeight" type="number" value="480"/></div>
-        <div><label>Art Offset X (inside frame)</label><input id="artOffsetX" type="number" value="0"/></div>
-        <div><label>Padding X</label><input id="padX" type="number" value="32"/></div>
-      </div>
-
-      <div class="row">
-        <div>
-          <label>Title — Size / X / Y</label>
-          <div class="row"><input id="tTitleSize" type="number" value="48"/><input id="tTitleX" type="number" value="64"/><input id="tTitleY" type="number" value="220"/></div>
-        </div>
-        <div>
-          <label>Unit/Type (bottom of art) — Size / X / Y</label>
-          <div class="row"><input id="tTypeSize" type="number" value="24"/><input id="tTypeX" type="number" value="64"/><input id="tTypeY" type="number" value="690"/></div>
-        </div>
-      </div>
-
-      <div class="row">
-        <div>
-          <label>Rules (right of stats) — Size / X / Y / W / H</label>
-          <div class="row"><input id="tRulesSize" type="number" value="20"/><input id="tRulesX" type="number" value="420"/><input id="tRulesTop" type="number" value="770"/><input id="tRulesWidth" type="number" value="520"/><input id="tRulesHeight" type="number" value="180"/></div>
-        </div>
-        <div>
-          <label>Stats — ATK / HP / MOV (X / Y / W / H / Size)</label>
+          <div class="help">Images are matched by <b>card name</b>. Example: a card named <code class="inline">Ashling Initiate</code> expects an image file named <code class="inline">Ashling Initiate.png</code> (case-insensitive). You can still set a per-card image override in the editor below.</div>
           <div class="row">
-            <input id="atkX" type="number" value="80"/><input id="atkY" type="number" value="770"/><input id="atkW" type="number" value="64"/><input id="atkH" type="number" value="64"/><input id="atkSize" type="number" value="28"/>
+            <button id="btnExportLayout">Export Layout JSON</button>
+            <button id="btnImportLayout">Import Layout JSON</button>
+            <input id="layoutFile" type="file" accept="application/json" style="display:none" />
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>2) Card Editor</h2>
+        <div class="body">
+          <div class="grid">
+            <div>
+              <label>Card</label>
+              <select id="cardSelect"></select>
+            </div>
+            <div>
+              <label>Faction</label>
+              <select id="faction">
+                <option>Flame</option>
+                <option>Blood</option>
+                <option>Ash</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid">
+            <div>
+              <label>Name</label>
+              <input id="name" type="text" />
+            </div>
+            <div>
+              <label>Type</label>
+              <input id="type" type="text" placeholder="Unit / Relic / Spell" />
+            </div>
+          </div>
+          <div class="grid">
+            <div>
+              <label>ATK</label>
+              <input id="atk" type="number" />
+            </div>
+            <div>
+              <label>HP</label>
+              <input id="hp" type="number" />
+            </div>
+          </div>
+          <div class="grid">
+            <div>
+              <label>MOV (Movement)</label>
+              <input id="mov" type="number" />
+            </div>
+            <div>
+              <label>Cost (Fragments)</label>
+              <input id="cost" type="number" />
+            </div>
+          </div>
+          <div>
+            <label>Rules Text</label>
+            <textarea id="rules" rows="4" placeholder="Rules text..."></textarea>
+          </div>
+          <div class="grid">
+            <div>
+              <label>Art Override (optional)</label>
+              <input id="artFile" type="file" accept="image/*" />
+            </div>
+            <div>
+              <label>Art Positioning</label>
+              <div class="row">
+                <input id="artX" type="number" placeholder="x" />
+                <input id="artY" type="number" placeholder="y" />
+                <input id="artW" type="number" placeholder="w" />
+                <input id="artH" type="number" placeholder="h" />
+              </div>
+              <div class="help">Left/Right movement supported. Use the large center grab to move; corner dots to resize.</div>
+            </div>
+          </div>
+          <div class="toolbar">
+            <button id="btnSaveCard" class="primary">Save Card Edits</button>
+            <button id="btnResetArt" class="ghost">Reset Art Box</button>
+            <span class="muted" id="status"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>3) Deck</h2>
+        <div class="body">
+          <div class="row">
+            <button id="btnAddToDeck">Add Selected Card</button>
+            <button id="btnClearDeck" class="ghost">Clear Deck</button>
+          </div>
+          <div id="deckList" class="deck"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>4) Build Sheets</h2>
+        <div class="body">
+          <div class="grid">
+            <div>
+              <label>Sheet Name</label>
+              <input id="sheetName" type="text" placeholder="e.g., Flame_Test_v6_1" />
+            </div>
+            <div>
+              <label>TTS Layout</label>
+              <select id="sheetLayout">
+                <option value="10x7">10×7 (TTS)</option>
+                <option value="5x3">5×3</option>
+              </select>
+            </div>
           </div>
           <div class="row">
-            <input id="hpX" type="number" value="80"/><input id="hpY" type="number" value="846"/><input id="hpW" type="number" value="64"/><input id="hpH" type="number" value="64"/><input id="hpSize" type="number" value="28"/>
+            <button id="btnPreview">Preview Sheet</button>
+            <button id="btnDownload" class="primary">Download PNG</button>
           </div>
-          <div class="row">
-            <input id="movX" type="number" value="80"/><input id="movY" type="number" value="922"/><input id="movW" type="number" value="64"/><input id="movH" type="number" value="64"/><input id="movSize" type="number" value="26"/>
-          </div>
+          <div class="help">10×7 canvas is generated at 7000×4900px (700px/card @ 10 columns × 7 rows) to map cleanly onto TTS 10×7 template.</div>
         </div>
       </div>
 
-      <div class="row">
-        <div>
-          <label>Cost Circle — X / Y / Diameter / Font Size</label>
-          <div class="row"><input id="costX" type="number" value="86"/><input id="costY" type="number" value="86"/><input id="costD" type="number" value="144"/><input id="costSize" type="number" value="40"/></div>
+    </div>
+
+    <div class="right">
+      <div class="board">
+        <div class="cardPanel">
+          <h2>Live Card Preview</h2>
+          <div class="canvasWrap">
+            <canvas id="cardCanvas" width="750" height="1050"></canvas>
+            <div id="cardHandle" class="handle" hidden>
+              <div class="grab">Move</div>
+              <div class="dot tl"></div>
+              <div class="dot tr"></div>
+              <div class="dot bl"></div>
+              <div class="dot br"></div>
+            </div>
+          </div>
+          <div class="hr"></div>
+          <div class="toolbar" style="padding:10px">
+            <span class="badge ash">ATK <span id="bATK">-</span></span>
+            <span class="badge ash">HP <span id="bHP">-</span></span>
+            <span class="badge ash">MOV <span id="bMOV">-</span></span>
+            <span class="badge" id="bFaction">Faction: -</span>
+          </div>
+        </div>
+        <div class="sheetPanel">
+          <h2>Sheet Preview</h2>
+          <div class="canvasWrap">
+            <canvas id="sheetCanvas" width="1400" height="980" style="background:#0e0e10"></canvas>
+          </div>
         </div>
       </div>
+    </div>
+  </div>
 
-      <div class="actions" style="margin-top:8px">
-        <label class="small"><input id="editMode" type="checkbox"/> ✥ Edit mode (click & drag on canvas)</label>
-        <label class="small"><input id="snap" type="checkbox" checked/> Snap (8px)</label>
+  <!-- Modal for full-size sheet preview + name input (already in sidebar, but handy here too) -->
+  <div id="previewModal" class="modal" aria-hidden="true">
+    <div class="card">
+      <header>
+        <h1>Sheet Preview</h1>
+        <span class="tag">10×7 TTS</span>
+      </header>
+      <div class="content">
+        <div class="row" style="margin-bottom:10px">
+          <input id="modalSheetName" type="text" placeholder="Sheet file name" />
+          <button id="modalClose">Close</button>
+          <button id="modalDownload" class="primary">Download</button>
+        </div>
+        <canvas id="modalSheetCanvas" width="7000" height="4900" style="width:100%;height:auto;background:#0e0e10"></canvas>
       </div>
     </div>
-  </section>
-
-  <!-- BATCH -->
-  <section class="card" style="grid-column:1 / span 2">
-    <h2>5) Batch</h2>
-    <div class="body">
-      <div class="actions">
-        <button id="renderAll">Render All ➜ Gallery</button>
-        <button id="prompts">Generate Image Prompts JSON</button>
-      </div>
-      <div id="gallery" class="gallery" style="margin-top:10px"></div>
-      <label>Prompts JSON</label>
-      <textarea id="promptBox" class="mono" placeholder='[{"name":"...","prompt":"..."}]'></textarea>
-    </div>
-  </section>
-</main>
+  </div>
 
 <script>
-'use strict';
+/**
+ * Star of Ash — Card Templater v6.1
+ * One-file build. Focus: reliability and UX fixes requested.
+ */
+(function(){
+  // ---------- State ----------
+  const state = {
+    cards: [], // loaded from CSV
+    imagesByName: new Map(), // name(lower) -> ImageBitmap
+    deck: [], // array of card indices
+    current: 0,
+    layout: { // art box defaults in card-canvas space (750x1050)
+      artX: 75, artY: 140, artW: 600, artH: 420
+    },
+  };
 
-/* ===== Diagnostics ===== */
-const $err = ()=>document.getElementById('err');
-function setDiag(msg){ const d=document.getElementById('diag'); if(d) d.textContent = msg; console.log('[diag]', msg); }
-window.addEventListener('error', e=>{ const b=$err(); if(b){ b.style.display='inline-block'; b.textContent='⚠ '+(e.message||'Script error'); } setDiag('Error: '+(e.message||'Script error')); });
-window.addEventListener('unhandledrejection', e=>{ const msg=(e.reason && e.reason.message) ? e.reason.message : (''+e.reason); const b=$err(); if(b){ b.style.display='inline-block'; b.textContent='⚠ '+msg; } setDiag('Error: '+msg); });
+  // ---------- DOM ----------
+  const el = {
+    csvFile: document.getElementById('csvFile'),
+    imgFolder: document.getElementById('imgFolder'),
+    cardSelect: document.getElementById('cardSelect'),
+    faction: document.getElementById('faction'),
+    name: document.getElementById('name'),
+    type: document.getElementById('type'),
+    atk: document.getElementById('atk'),
+    hp: document.getElementById('hp'),
+    mov: document.getElementById('mov'),
+    cost: document.getElementById('cost'),
+    rules: document.getElementById('rules'),
+    artFile: document.getElementById('artFile'),
+    artX: document.getElementById('artX'),
+    artY: document.getElementById('artY'),
+    artW: document.getElementById('artW'),
+    artH: document.getElementById('artH'),
+    btnSaveCard: document.getElementById('btnSaveCard'),
+    btnResetArt: document.getElementById('btnResetArt'),
+    status: document.getElementById('status'),
 
-/* ===== State ===== */
-const state = {
-  cards: [],
-  idx: 0,
-  map: { id:'ID', name:'Name', faction:'Faction', type:'Type', cost:'Cost', atk:'ATK', hp:'HP', mov:'MOV', rules:'Rules', flavor:'Flavor', image:'Image' },
-  edit:{enabled:false,dragging:false,selected:null,handle:null,orig:null,start:null},
-  frame:{img:null, alpha:1, enabled:false, above:false, src:null},
-  tool:'move', // 'move' | 'resize'
-  layout:null
-};
+    btnAddToDeck: document.getElementById('btnAddToDeck'),
+    btnClearDeck: document.getElementById('btnClearDeck'),
+    deckList: document.getElementById('deckList'),
 
-/* ===== DOM refs ===== */
-const el = id => document.getElementById(id);
-const $canvas = el('cardCanvas'); const $ctx = $canvas.getContext('2d');
-const $sheet = el('sheetCanvas'); const $sctx = $sheet.getContext('2d');
+    sheetName: document.getElementById('sheetName'),
+    sheetLayout: document.getElementById('sheetLayout'),
+    btnPreview: document.getElementById('btnPreview'),
+    btnDownload: document.getElementById('btnDownload'),
 
-/* ===== Utils ===== */
-function parseCSV(text){
-  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  const rows=[]; let cur='',row=[],inQ=false;
-  for (let i=0;i<text.length;i++){
-    const ch=text[i], nx=text[i+1];
-    if (inQ){
-      if (ch==='"' && nx==='"'){ cur+='"'; i++; }
-      else if (ch==='"'){ inQ=false; }
-      else cur+=ch;
-    } else {
-      if (ch==='"') inQ=true;
-      else if (ch===','){ row.push(cur); cur=''; }
-      else if (ch=== '\n'){ row.push(cur); rows.push(row); row=[]; cur=''; }
-      else cur+=ch;
-    }
+    bATK: document.getElementById('bATK'),
+    bHP: document.getElementById('bHP'),
+    bMOV: document.getElementById('bMOV'),
+    bFaction: document.getElementById('bFaction'),
+
+    cardCanvas: document.getElementById('cardCanvas'),
+    sheetCanvas: document.getElementById('sheetCanvas'),
+
+    handle: document.getElementById('cardHandle'),
+
+    btnExportLayout: document.getElementById('btnExportLayout'),
+    btnImportLayout: document.getElementById('btnImportLayout'),
+    layoutFile: document.getElementById('layoutFile'),
+
+    // modal
+    modal: document.getElementById('previewModal'),
+    modalClose: document.getElementById('modalClose'),
+    modalDownload: document.getElementById('modalDownload'),
+    modalSheetCanvas: document.getElementById('modalSheetCanvas'),
+    modalSheetName: document.getElementById('modalSheetName'),
+  };
+
+  const ctx = el.cardCanvas.getContext('2d');
+  const sctx = el.sheetCanvas.getContext('2d');
+  const mctx = el.modalSheetCanvas.getContext('2d');
+
+  // ---------- Utilities ----------
+  const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
+  const toLower = s => (s||'').trim().toLowerCase();
+  const parseCSV = async(file)=>{
+    const text = await file.text();
+    // Very lightweight CSV parse (assumes well-formed)
+    const lines = text.replace(/\r/g,'').split('\n').filter(Boolean);
+    const headers = lines.shift().split(',').map(h=>h.trim());
+    return lines.map(line=>{
+      const cells = [];
+      let cur="", inQ=false;
+      for(let i=0;i<line.length;i++){
+        const ch=line[i];
+        if(ch==='"'){
+          if(inQ && line[i+1]==='"'){cur+='"';i++;}
+          else inQ=!inQ;
+        }else if(ch===',' && !inQ){cells.push(cur);cur=""}
+        else cur+=ch;
+      }
+      cells.push(cur);
+      const obj={};
+      headers.forEach((h,idx)=>obj[h]=cells[idx]??"");
+      return obj;
+    });
+  };
+  const loadImageBitmap = (file)=> new Promise((res,rej)=>{
+    const fr = new FileReader();
+    fr.onload = () => {
+      createImageBitmap(new Blob([fr.result]))
+        .then(res).catch(rej);
+    };
+    fr.onerror = rej;
+    fr.readAsArrayBuffer(file);
+  });
+
+  function downloadBlobPNG(canvas, name){
+    canvas.toBlob(b=>{
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(b);
+      a.download=(name||'sheet')+'.png';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }, 'image/png');
   }
-  if (cur.length || row.length){ row.push(cur); rows.push(row); }
-  if (!rows.length) return [];
-  const headers=(rows.shift()||[]).map(h=>h.replace(/^\uFEFF/, '').trim());
-  return rows.filter(r=>r.length && r.some(x=>x!=='')) .map(r=>Object.fromEntries(headers.map((h,i)=>[h,(r[i]??'').trim()])));
-}
-const loadImage = src => new Promise((res,rej)=>{ const img=new Image(); if(/^https?:/i.test(src)) img.crossOrigin='anonymous'; img.onload=()=>res(img); img.onerror=()=>rej(new Error('Image failed: '+src)); img.src=src; });
-const fitMode = (iw,ih,ow,oh,mode)=>{ const ir=iw/ih, or=ow/oh; let w,h; if(mode==='cover'? ir<or : ir>or){ w=ow; h=ow/ir; } else { h=oh; w=oh*ir; } const x=(ow-w)/2, y=(oh-h)/2; return {x,y,w,h}; };
-function factionColors(f){ const x=(f||'').toLowerCase(); if(x.includes('flame')) return {base:'#26160f',frame:'#b8571b',accent:'#ffb37a'}; if(x.includes('blood')) return {base:'#1c1111',frame:'#8a1d1d',accent:'#ff8a8a'}; if(x.includes('ash')) return {base:'#161616',frame:'#7c7c7c',accent:'#d9d4c5'}; return {base:'#151517',frame:'#555',accent:'#ddd'}; }
-function truncToWidth(text,max,ctx){ let s=''+(text||''); while(ctx.measureText(s).width>max && s.length>3){ s=s.slice(0,-4)+'…'; } return s; }
-function wrapWords(t){ return (t||'').replace(/\s+/g,' ').trim(); }
-function multiline(ctx,text,x,top,width,lh){ text=wrapWords(text); let line='',y=top; const parts=text.split(' '); for (let i=0;i<parts.length;i++){ const test=line? line+' '+parts[i] : parts[i]; if (ctx.measureText(test).width>width){ ctx.fillText(line,x,y); line=parts[i]; y+=lh; } else line=test; } if(line) ctx.fillText(line,x,y); }
-function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
-function placeholder(ctx,x,y,w,h){ ctx.save(); ctx.strokeStyle="#333"; ctx.setLineDash([8,6]); ctx.lineWidth=2; ctx.strokeRect(x,y,w,h); ctx.restore(); }
-function normKeyTight(s){ return (''+(s||'')).toLowerCase().replace(/\.(png|jpe?g|webp|gif)$/,'').replace(/[^a-z0-9]+/g,'').trim(); }
-function normKeyDashes(s){ return (''+(s||'')).toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9\-]+/g,'').replace(/\-+/g,'-').replace(/^\-|\-$/g,''); }
-function isURL(s){ return /^https?:\/\//i.test(''+s) || /^blob:/.test(''+s); }
 
-/* ===== Render Card ===== */
-async function renderCard(card){
-  const outSel=el('outSize').value;
-  const W=1024, H=(outSel==='warchief'||/\bwar\s*chief\b/i.test(''+(card[state.map.type]||'')))?1536:1024;
-  $canvas.width=W; $canvas.height=H; $ctx.clearRect(0,0,W,H);
+  function setStatus(msg, type=''){
+    el.status.textContent = msg;
+    el.status.style.color = type==='ok'? 'var(--ok)': type==='bad'? 'var(--bad)': 'var(--muted)';
+  }
 
-  const border=+el('border').value||16, radius=+el('radius').value||28, frameOpacity=+el('frameOpacity').value||0.85;
-  const padX=+el('padX').value||32, artTop=+el('artTop').value||210, artHeight=+el('artHeight').value||480, artFit=el('artFit').value, artOffX=+el('artOffsetX').value||0;
-  const titleX=+el('tTitleX').value||64, titleY=+el('tTitleY').value||220, titleSize=+el('tTitleSize').value||48;
-  const typeX=+el('tTypeX').value||64, typeY=+el('tTypeY').value||690, typeSize=+el('tTypeSize').value||24;
-
-  const rulesX=+el('tRulesX').value||420, rulesTop=+el('tRulesTop').value||770, rulesW=+el('tRulesWidth').value||520, rulesH=+el('tRulesHeight').value||180, rulesSize=+el('tRulesSize').value||20;
-
-  const atkX=+el('atkX').value||80, atkY=+el('atkY').value||770, atkW=+el('atkW').value||64, atkH=+el('atkH').value||64, atkSize=+el('atkSize').value||28;
-  const hpX=+el('hpX').value||80, hpY=+el('hpY').value||846, hpW=+el('hpW').value||64, hpH=+el('hpH').value||64, hpSize=+el('hpSize').value||28;
-  const movX=+el('movX').value||80, movY=+el('movY').value||922, movW=+el('movW').value||64, movH=+el('movH').value||64, movSize=+el('movSize').value||26;
-
-  const costX=+el('costX').value||86, costY=+el('costY').value||86, costD=+el('costD').value||144, costSize=+el('costSize').value||40;
-
-  // Palette and background
-  const colors=factionColors(card[state.map.faction]);
-  $ctx.fillStyle=colors.base; $ctx.fillRect(0,0,W,H);
-
-  // Optional texture
-  const bgUrl=el('bgUrl').value.trim();
-  if(bgUrl){ try{ const img=await loadImage(bgUrl); const r=fitMode(img.width,img.height,W,H,'cover'); $ctx.globalAlpha=.18; $ctx.drawImage(img,r.x,r.y,r.w,r.h); $ctx.globalAlpha=1; }catch(e){} }
-
-  // Frame gradient base
-  $ctx.save(); $ctx.globalAlpha=frameOpacity; roundRect($ctx,border/2,border/2,W-border,H-border,radius); $ctx.clip();
-  const grad=$ctx.createLinearGradient(0,0,W,H); grad.addColorStop(0,colors.frame); grad.addColorStop(1,'#1a1a1a'); $ctx.fillStyle=grad; $ctx.fillRect(0,0,W,H); $ctx.restore();
-
-  // Template overlay UNDER text
-  if(state.frame.enabled && state.frame.img && !state.frame.above){ $ctx.save(); $ctx.globalAlpha=state.frame.alpha; $ctx.drawImage(state.frame.img,0,0,W,H); $ctx.restore(); }
-
-  // === ART BOX ===
-  const artRect={x:padX,y:artTop,w:W-2*padX,h:artHeight};
-  const artURL = resolveArtURL(card);
-  if(artURL){
+  // ---------- CSV + Images ----------
+  el.csvFile.addEventListener('change', async e=>{
     try{
-      const art=await loadImage(artURL);
-      const r=fitMode(art.width,art.height,artRect.w,artRect.h,artFit);
-      // allow horizontal nudge
-      const nx = artRect.x + r.x + artOffX;
-      const clampedX = Math.min(Math.max(nx, artRect.x - r.w + artRect.w), artRect.x + r.x*2); // keep some bounds
-      $ctx.save(); $ctx.beginPath(); $ctx.rect(artRect.x, artRect.y, artRect.w, artRect.h); $ctx.clip();
-      $ctx.drawImage(art, clampedX, artRect.y + r.y, r.w, r.h);
-      $ctx.restore();
-    } catch(e){ placeholder($ctx,artRect.x,artRect.y,artRect.w,artRect.h); }
-  } else { placeholder($ctx,artRect.x,artRect.y,artRect.w,artRect.h); }
+      const file = e.target.files[0];
+      if(!file){return}
+      setStatus('Parsing CSV…');
+      const rows = await parseCSV(file);
+      // Expecting columns at least: name, faction, type, atk, hp, mov, cost, rules (case-insensitive ok)
+      state.cards = rows.map(r=>({
+        name: r.name||r.Name||'',
+        faction: r.faction||r.Faction||'',
+        type: r.type||r.Type||'',
+        atk: +((r.atk||r.ATK||0)),
+        hp: +((r.hp||r.HP||0)),
+        mov: +((r.mov||r.MOV||r.movement||0)),
+        cost: +((r.cost||r.Cost||0)),
+        rules: r.rules||r.Rules||'',
+        // layout overrides
+        artX: +(r.artX||''), artY: +(r.artY||''), artW: +(r.artW||''), artH: +(r.artH||''),
+        // runtime
+        _img: null, // ImageBitmap override if user sets file
+      }));
+      hydrateUIFromCards();
+      setStatus(`Loaded ${state.cards.length} cards from CSV.`, 'ok');
+    }catch(err){
+      console.error(err);
+      setStatus('Failed to parse CSV.', 'bad');
+    }
+  });
 
-  // === TEXT OVER/UNDER ART ===
-  const name=(''+(card[state.map.name]||'')); 
-  const type=(''+(card[state.map.type]||''));
-  $ctx.fillStyle='#f3efe8'; $ctx.font=`800 ${titleSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`; $ctx.textAlign='left';
-  $ctx.fillText(truncToWidth(name, artRect.w-32, $ctx), titleX, titleY);
+  el.imgFolder.addEventListener('change', async e=>{
+    const files = [...e.target.files];
+    if(!files.length){return}
+    setStatus('Importing images…');
+    const lowerMap = new Map();
+    // build map by filename (without extension)
+    for(const f of files){
+      const base = f.name.replace(/\.[^.]+$/, '');
+      lowerMap.set(toLower(base), f);
+    }
+    // load to ImageBitmap map
+    let ok=0, miss=0;
+    for(const c of state.cards){
+      const match = lowerMap.get(toLower(c.name));
+      if(match){
+        try{state.imagesByName.set(toLower(c.name), await loadImageBitmap(match)); ok++;}
+        catch{miss++;}
+      }else miss++;
+    }
+    setStatus(`Images matched: ${ok}; missing: ${miss}.`, ok? 'ok':'warn');
+    drawCard();
+  });
 
-  $ctx.fillStyle='#d7d3cf'; $ctx.font=`600 ${typeSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`;
-  $ctx.fillText(truncToWidth(type, artRect.w-32, $ctx), typeX, typeY);
-
-  // === COST CIRCLE ===
-  const cost=(''+(card[state.map.cost]||'')).trim();
-  if(cost){
-    $ctx.save();
-    $ctx.shadowColor=colors.accent; $ctx.shadowBlur=18;
-    $ctx.beginPath(); $ctx.arc(costX, costY, costD/2, 0, Math.PI*2); $ctx.fillStyle='#0f141bcc'; $ctx.fill(); $ctx.shadowBlur=0;
-    $ctx.lineWidth=2; $ctx.strokeStyle=colors.accent; $ctx.stroke();
-    $ctx.fillStyle=colors.accent; $ctx.font=`800 ${costSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`; $ctx.textAlign='center';
-    $ctx.fillText(cost, costX, costY + costSize*0.36);
-    $ctx.restore();
+  // ---------- UI binding ----------
+  function hydrateUIFromCards(){
+    // Populate dropdown
+    el.cardSelect.innerHTML = '';
+    state.cards.forEach((c,i)=>{
+      const opt=document.createElement('option');
+      opt.value = i; opt.textContent = c.name || `(Card ${i+1})`;
+      el.cardSelect.appendChild(opt);
+    });
+    state.current = 0;
+    syncEditor();
+    drawCard();
+    renderDeck();
   }
 
-  // === STATS (separate boxes) ===
-  drawStatBox(atkX,atkY,atkW,atkH,colors.accent,(''+(card[state.map.atk]||'')).trim(),atkSize);
-  drawStatBox(hpX,hpY,hpW,hpH,colors.accent,(''+(card[state.map.hp]||'')).trim(),hpSize);
-  drawStatBox(movX,movY,movW,movH,'#9ad4ff',(''+(card[state.map.mov]||'')).trim(),movSize);
+  function syncEditor(){
+    const c = state.cards[state.current]||{};
+    el.cardSelect.value = state.current;
+    el.faction.value = c.faction||'Flame';
+    el.name.value = c.name||'';
+    el.type.value = c.type||'';
+    el.atk.value = c.atk||0;
+    el.hp.value = c.hp||0;
+    el.mov.value = c.mov||0;
+    el.cost.value = c.cost||0;
+    el.rules.value = c.rules||'';
+    // art box
+    const ax = Number.isFinite(c.artX) && c.artX>0 ? c.artX : state.layout.artX;
+    const ay = Number.isFinite(c.artY) && c.artY>0 ? c.artY : state.layout.artY;
+    const aw = Number.isFinite(c.artW) && c.artW>0 ? c.artW : state.layout.artW;
+    const ah = Number.isFinite(c.artH) && c.artH>0 ? c.artH : state.layout.artH;
+    el.artX.value = ax; el.artY.value = ay; el.artW.value = aw; el.artH.value = ah;
+    // badges
+    el.bATK.textContent = (el.bATK.textContent = c.atk ?? '-')
+    document.getElementById('bATK').textContent = c.atk ?? '-';
+    document.getElementById('bHP').textContent = c.hp ?? '-';
+    document.getElementById('bMOV').textContent = c.mov ?? '-';
+    document.getElementById('bFaction').textContent = `Faction: ${c.faction||'-'}`;
+  }
 
-  // === RULES (to right of stats) ===
-  $ctx.fillStyle='#f1eee8'; $ctx.font=`500 ${rulesSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`;
-  multiline($ctx, (''+(card[state.map.rules]||'')), rulesX, rulesTop, rulesW, rulesSize*1.25);
+  el.cardSelect.addEventListener('change', e=>{
+    state.current = +e.target.value;
+    syncEditor();
+    drawCard();
+  });
 
-  // Watermark
-  const wm=el('watermark').value.trim(); if(wm){ $ctx.fillStyle='#b9b4ad'; $ctx.globalAlpha=.75; $ctx.font=`600 16px system-ui,Segoe UI,Roboto,Helvetica,Arial`; $ctx.textAlign='center'; $ctx.fillText(wm, W/2, H-12); $ctx.globalAlpha=1; }
+  el.btnSaveCard.addEventListener('click', ()=>{
+    const c = state.cards[state.current];
+    if(!c) return;
+    c.faction = el.faction.value.trim();
+    c.name = el.name.value.trim();
+    c.type = el.type.value.trim();
+    c.atk = +el.atk.value|0; c.hp = +el.hp.value|0; c.mov= +el.mov.value|0; c.cost= +el.cost.value|0;
+    c.rules = el.rules.value;
+    c.artX = +el.artX.value|0; c.artY = +el.artY.value|0; c.artW = +el.artW.value|0; c.artH = +el.artH.value|0;
+    // if user added override
+    if(el.artFile.files[0]){
+      loadImageBitmap(el.artFile.files[0]).then(img=>{ c._img = img; drawCard(); });
+    }
+    // update dropdown name
+    el.cardSelect.options[state.current].textContent = c.name || `(Card ${state.current+1})`;
+    setStatus('Saved.', 'ok');
+    drawCard();
+  });
 
-  // Template overlay ABOVE text
-  if(state.frame.enabled && state.frame.img && state.frame.above){ $ctx.save(); $ctx.globalAlpha=state.frame.alpha; $ctx.drawImage(state.frame.img,0,0,W,H); $ctx.restore(); }
+  el.btnResetArt.addEventListener('click', ()=>{
+    const c = state.cards[state.current]; if(!c) return;
+    c.artX = state.layout.artX; c.artY = state.layout.artY; c.artW = state.layout.artW; c.artH = state.layout.artH;
+    el.artX.value=c.artX; el.artY.value=c.artY; el.artW.value=c.artW; el.artH.value=c.artH;
+    drawCard();
+  });
 
-  // Edit overlay
-  if(el('editMode').checked){
-    drawOverlay(W,H,artRect,{
-      title:{x:titleX,y:titleY}, type:{x:typeX,y:typeY},
-      rules:{x:rulesX,y:rulesTop,w:rulesW,h:rulesH},
-      atk:{x:atkX,y:atkY,w:atkW,h:atkH},
-      hp:{x:hpX,y:hpY,w:hpW,h:hpH},
-      mov:{x:movX,y:movY,w:movW,h:movH},
-      cost:{x:costX-costD/2,y:costY-costD/2,w:costD,h:costD}
+  // Deck actions
+  el.btnAddToDeck.addEventListener('click', ()=>{
+    if(state.cards.length===0) return;
+    state.deck.push(state.current);
+    renderDeck();
+  });
+  el.btnClearDeck.addEventListener('click', ()=>{ state.deck=[]; renderDeck(); });
+
+  function renderDeck(){
+    el.deckList.innerHTML='';
+    state.deck.forEach((idx, i)=>{
+      const c = state.cards[idx];
+      const row = document.createElement('div');
+      row.className='item';
+      row.innerHTML = `<div>${i+1}. ${c?.name||'-'}</div>`;
+      const btn = document.createElement('button');
+      btn.textContent='—';
+      btn.title='Remove';
+      btn.addEventListener('click',()=>{state.deck.splice(i,1); renderDeck();});
+      row.appendChild(btn);
+      el.deckList.appendChild(row);
     });
   }
 
-  return $canvas;
-}
+  // ---------- Drawing (Card) ----------
+  function drawCard(){
+    const c = state.cards[state.current];
+    ctx.clearRect(0,0,el.cardCanvas.width, el.cardCanvas.height);
 
-function drawStatBox(x,y,w,h,color,value,fontSize){
-  if(!value) return;
-  $ctx.save();
-  $ctx.shadowColor=color; $ctx.shadowBlur=14;
-  roundRect($ctx,x,y,w,h,Math.min(w,h)/4); $ctx.fillStyle='#151515cc'; $ctx.fill(); $ctx.shadowBlur=0;
-  $ctx.strokeStyle=color; $ctx.lineWidth=2; roundRect($ctx,x,y,w,h,Math.min(w,h)/4); $ctx.stroke();
-  $ctx.fillStyle=color; $ctx.font=`800 ${fontSize}px system-ui,Segoe UI,Roboto,Helvetica,Arial`; $ctx.textAlign='center';
-  $ctx.fillText(value, x+w/2, y+h*0.68);
-  $ctx.restore();
-}
+    // frame bg
+    ctx.fillStyle = '#0f0f12';
+    ctx.fillRect(0,0,750,1050);
 
-/* Art URL resolution */
-function resolveArtURL(card){
-  const mode=el('imgMode').value;
-  const base=(el('imgBase').value||'').trim();
-  let field=(''+(card[state.map.image]||'')).trim();
-  if(mode==='csv' && field){
-    return (/^https?:\/\//i.test(field)||/^blob:/.test(field)) ? field : (base? (base.replace(/\/+$/,'')+'/'+field.replace(/^\/+/,'') ): field);
+    // faction strip
+    const factionColor = c?.faction==='Flame'? '#b8571b' : c?.faction==='Blood'? '#8a1d1d' : '#2b2b30';
+    ctx.fillStyle=factionColor; ctx.fillRect(0,0,750,90);
+
+    // name badge circle in top-left
+    ctx.fillStyle='rgba(0,0,0,.45)';
+    ctx.beginPath(); ctx.arc(70,70,46,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='700 22px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText((c?.name||'Untitled').slice(0,12), 70, 70);
+
+    // stats rect mid (replacing old circle)
+    ctx.fillStyle='rgba(255,255,255,.06)';
+    ctx.fillRect(40, 580, 670, 130);
+
+    // Art box
+    const ax = +(c?.artX ?? state.layout.artX), ay = +(c?.artY ?? state.layout.artY), aw = +(c?.artW ?? state.layout.artW), ah = +(c?.artH ?? state.layout.artH);
+    ctx.fillStyle='#151517'; ctx.fillRect(ax, ay, aw, ah);
+
+    // draw art (override > folder match)
+    let img = c?._img || state.imagesByName.get(toLower(c?.name||''));
+    if(img){
+      // cover fit
+      const ir = img.width/img.height; const br = aw/ah;
+      let dw=aw, dh=ah;
+      if(ir>br){ dh=ah; dw=dh*ir; } else { dw=aw; dh=dw/ir; }
+      const dx = ax + (aw-dw)/2; const dy = ay + (ah-dh)/2;
+      ctx.drawImage(img, dx, dy, dw, dh);
+    } else {
+      ctx.strokeStyle='rgba(255,255,255,.15)';
+      ctx.setLineDash([6,6]);
+      ctx.strokeRect(ax, ay, aw, ah);
+      ctx.setLineDash([]);
+      ctx.fillStyle='rgba(255,255,255,.35)';
+      ctx.font='600 16px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('Art Placeholder', ax+aw/2, ay+ah/2);
+    }
+
+    // Stats badges (ATK / HP / MOV)
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    ctx.font='700 24px system-ui';
+    ctx.fillStyle='#eae7e4';
+    ctx.fillText('ATK: '+(c?.atk??'-'), 60, 625);
+    ctx.fillText('HP: '+(c?.hp??'-'), 300, 625);
+    ctx.fillText('MOV: '+(c?.mov??'-'), 540, 625);
+
+    // Type + Cost line
+    ctx.font='600 18px system-ui';
+    ctx.fillStyle='#a8a3a0';
+    ctx.fillText(`${c?.type||'-'}  •  Cost: ${c?.cost??0} Fragments`, 60, 665);
+
+    // Rules box
+    ctx.fillStyle='rgba(255,255,255,.06)';
+    ctx.fillRect(40, 730, 670, 260);
+    ctx.fillStyle='#eae7e4';
+    ctx.font='500 18px system-ui';
+    ctx.textAlign='left'; ctx.textBaseline='top';
+    wrapText(ctx, (c?.rules||'Rules text…'), 60, 750, 630, 24);
+
+    // update badges under canvas
+    document.getElementById('bATK').textContent = c?.atk ?? '-';
+    document.getElementById('bHP').textContent = c?.hp ?? '-';
+    document.getElementById('bMOV').textContent = c?.mov ?? '-';
+    document.getElementById('bFaction').textContent = `Faction: ${c?.faction||'-'}`;
+
+    // refresh handle box
+    positionHandle(ax, ay, aw, ah);
   }
-  // From Name + extension
-  const name=(''+(card[state.map.name]||'')).trim();
-  if(!name || !base) return ''; // need base url to construct
-  const ext=el('imgExt').value||'png';
-  const slugMode=el('imgSlug').value||'tight';
-  const slug = slugMode==='dashes' ? normKeyDashes(name) : normKeyTight(name);
-  return base.replace(/\/+$/,'') + '/' + slug + '.' + ext;
-}
 
-/* ===== Overlay / Editor ===== */
-function drawOverlay(W,H,artRect,blocks){
-  const ctx=$ctx;
-  // grid
-  ctx.save(); ctx.globalCompositeOperation='destination-over'; ctx.globalAlpha=.32; ctx.strokeStyle='#ffffff22';
-  const step=Math.max(8,Math.floor(W/64));
-  for(let x=0;x<=W;x+=step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-  for(let y=0;y<=H;y+=step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
-  ctx.restore();
+  function wrapText(ctx, text, x, y, maxW, lh){
+    const words = String(text).split(/\s+/);
+    let line = '', yy=y;
+    for(const w of words){
+      const t = line? line+" "+w : w;
+      if(ctx.measureText(t).width > maxW){
+        ctx.fillText(line, x, yy); yy+=lh; line=w;
+      }else line=t;
+    }
+    if(line) ctx.fillText(line, x, yy);
+  }
 
-  // boxes + points
-  const rects=[['art',artRect],['rules',blocks.rules],['atk',blocks.atk],['hp',blocks.hp],['mov',blocks.mov],['cost',blocks.cost]];
-  rects.forEach(([k,r])=>{
-    ctx.strokeStyle = state.edit.selected===k? '#7fd3a8':'#ffb84d'; ctx.lineWidth=2;
-    ctx.strokeRect(r.x,r.y,r.w,r.h); drawCornerDots(ctx,r); label(ctx,r.x,r.y-6,k+(state.tool==='resize'?' (resize)':''));
+  // ---------- Drag/Resize Handle ----------
+  const handle = el.handle; let dragTarget=null; let start={};
+  function positionHandle(x,y,w,h){
+    handle.hidden=false; handle.style.left=(el.cardCanvas.offsetLeft + x + 10) + 'px';
+    handle.style.top=(el.cardCanvas.offsetTop + y + 10) + 'px';
+    handle.style.width=w+'px'; handle.style.height=h+'px';
+  }
+
+  // event helpers on handle
+  function onGrabDown(e){
+    e.preventDefault(); dragTarget='move';
+    start={ mx:e.clientX, my:e.clientY, x:+el.artX.value, y:+el.artY.value, w:+el.artW.value, h:+el.artH.value };
+    window.addEventListener('mousemove', onGrabMove);
+    window.addEventListener('mouseup', onGrabUp);
+  }
+  function onCornerDown(kind){
+    return function(e){ e.preventDefault(); dragTarget=kind;
+      start={ mx:e.clientX, my:e.clientY, x:+el.artX.value, y:+el.artY.value, w:+el.artW.value, h:+el.artH.value };
+      window.addEventListener('mousemove', onGrabMove);
+      window.addEventListener('mouseup', onGrabUp);
+    }
+  }
+  function onGrabMove(e){
+    const dx=e.clientX-start.mx, dy=e.clientY-start.my;
+    if(dragTarget==='move'){
+      el.artX.value = start.x + dx;
+      el.artY.value = start.y + dy;
+    } else if(dragTarget==='tl'){
+      el.artX.value = start.x + dx; el.artY.value = start.y + dy;
+      el.artW.value = start.w - dx; el.artH.value = start.h - dy;
+    } else if(dragTarget==='tr'){
+      el.artY.value = start.y + dy; el.artW.value = start.w + dx; el.artH.value = start.h - dy;
+    } else if(dragTarget==='bl'){
+      el.artX.value = start.x + dx; el.artW.value = start.w - dx; el.artH.value = start.h + dy;
+    } else if(dragTarget==='br'){
+      el.artW.value = start.w + dx; el.artH.value = start.h + dy;
+    }
+    drawCard();
+  }
+  function onGrabUp(){
+    dragTarget=null; window.removeEventListener('mousemove', onGrabMove); window.removeEventListener('mouseup', onGrabUp);
+    // persist into current card
+    const c=state.cards[state.current]; if(!c) return;
+    c.artX=+el.artX.value; c.artY=+el.artY.value; c.artW=+el.artW.value; c.artH=+el.artH.value;
+  }
+
+  handle.querySelector('.grab').addEventListener('mousedown', onGrabDown);
+  handle.querySelector('.tl').addEventListener('mousedown', onCornerDown('tl'));
+  handle.querySelector('.tr').addEventListener('mousedown', onCornerDown('tr'));
+  handle.querySelector('.bl').addEventListener('mousedown', onCornerDown('bl'));
+  handle.querySelector('.br').addEventListener('mousedown', onCornerDown('br'));
+
+  // ---------- Save/Load Layout ----------
+  el.btnExportLayout.addEventListener('click', ()=>{
+    const data = {
+      layoutDefaults: state.layout,
+      cards: state.cards.map(c=>({name:c.name, artX:c.artX, artY:c.artY, artW:c.artW, artH:c.artH}))
+    };
+    const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v6_1.json'; a.click(); URL.revokeObjectURL(a.href);
   });
-  const pts=[['title',blocks.title],['type',blocks.type]];
-  pts.forEach(([k,p])=>{ ctx.fillStyle = state.edit.selected===k? '#7fd3a8':'#ff6b6b'; ctx.beginPath(); ctx.arc(p.x, p.y-10, 6, 0, Math.PI*2); ctx.fill(); label(ctx,p.x+8,p.y-16,k+(state.tool==='move'?' (move)':'')); });
-}
-function drawCornerDots(ctx,r){ const s=6; const c=[[r.x,r.y],[r.x+r.w,r.y],[r.x,r.y+r.h],[r.x+r.w,r.y+r.h]];
-  c.forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y, s, 0, Math.PI*2); ctx.fillStyle='#111'; ctx.fill(); ctx.strokeStyle='#aaa'; ctx.stroke(); });
-}
-function label(ctx,x,y,t){ ctx.save(); ctx.fillStyle='#ddd'; ctx.font='12px system-ui,Segoe UI,Roboto'; ctx.fillText(t,x,y); ctx.restore(); }
-
-function currentPositions(){
-  const W=$canvas.width, H=$canvas.height;
-  return {
-    W,H,
-    title:{x:+el('tTitleX').value||64, y:+el('tTitleY').value||220},
-    type:{x:+el('tTypeX').value||64, y:+el('tTypeY').value||690},
-    art:{x:+el('padX').value||32, y:+el('artTop').value||210, w: W-2*(+el('padX').value||32), h:+el('artHeight').value||480},
-    rules:{x:+el('tRulesX').value||420, y:+el('tRulesTop').value||770, w:+el('tRulesWidth').value||520, h:+el('tRulesHeight').value||180},
-    atk:{x:+el('atkX').value||80, y:+el('atkY').value||770, w:+el('atkW').value||64, h:+el('atkH').value||64},
-    hp:{x:+el('hpX').value||80, y:+el('hpY').value||846, w:+el('hpW').value||64, h:+el('hpH').value||64},
-    mov:{x:+el('movX').value||80, y:+el('movY').value||922, w:+el('movW').value||64, h:+el('movH').value||64},
-    cost:{x:+el('costX').value-(+el('costD').value)/2, y:+el('costY').value-(+el('costD').value)/2, w:+el('costD').value, h:+el('costD').value}
-  };
-}
-function hitTest(x,y){
-  const P=currentPositions();
-  const inRect=r=>x>=r.x && x<=r.x+r.w && y>=r.y && y<=r.y+r.h;
-  const near=(cx,cy,rad=10)=>Math.abs(x-cx)<=rad && Math.abs(y-cy)<=rad;
-  const corners=r=>[['tl',r.x,r.y],['tr',r.x+r.w,r.y],['bl',r.x,r.y+r.h],['br',r.x+r.w,r.y+r.h]];
-  const only = el('selectEl').value || null;
-
-  for (const [key,r] of Object.entries({art:P.art,rules:P.rules,atk:P.atk,hp:P.hp,mov:P.mov,cost:P.cost})){
-    if (only && key!==only) continue;
-    for (const [h,cx,cy] of corners(r)){ if(near(cx,cy,10)) return {type:'rect', key, handle:h}; }
-    if (state.tool==='move' && inRect(r)) return {type:'rect', key, handle:'move'};
-  }
-  for (const [key,p] of Object.entries({title:P.title,type:P.type})){
-    if (only && key!==only) continue;
-    if ((x-p.x)**2 + (y-(p.y-10))**2 <= 81) return {type:'point', key};
-  }
-  return null;
-}
-function snapPx(v){ return el('snap').checked ? Math.round(v/8)*8 : v; }
-
-$canvas.addEventListener('mousedown',e=>{
-  if (!el('editMode').checked) return;
-  const r=$canvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
-  const hit=hitTest(x,y); if(!hit) return;
-  if(state.tool==='resize' && !(hit.type==='rect' && hit.handle!=='move')) return;
-  if(state.tool==='move' && hit.type==='rect' && hit.handle!=='move') return;
-  state.edit.dragging=true; state.edit.selected=hit.key; state.edit.handle=hit; state.edit.start={x,y}; state.edit.orig=currentPositions(); e.preventDefault();
-});
-$canvas.addEventListener('mousemove',e=>{
-  const r=$canvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
-  if (el('editMode').checked && !state.edit.dragging){
-    const hit=hitTest(x,y);
-    if(hit){
-      if(hit.type==='point') $canvas.style.cursor='grab';
-      else if(hit.type==='rect'){
-        const h=hit.handle;
-        if (state.tool==='move' && h==='move') $canvas.style.cursor='move';
-        else if (state.tool==='resize' && h!=='move') $canvas.style.cursor=(h==='tl'||h==='br')?'nwse-resize':'nesw-resize';
-        else $canvas.style.cursor='default';
+  el.btnImportLayout.addEventListener('click', ()=> el.layoutFile.click());
+  el.layoutFile.addEventListener('change', async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    try{
+      const obj=JSON.parse(await f.text());
+      if(obj.layoutDefaults) state.layout = obj.layoutDefaults;
+      if(Array.isArray(obj.cards)){
+        for(const o of obj.cards){
+          const idx = state.cards.findIndex(k=>toLower(k.name)===toLower(o.name));
+          if(idx>-1){ Object.assign(state.cards[idx], {artX:o.artX, artY:o.artY, artW:o.artW, artH:o.artH}); }
+        }
       }
-    } else $canvas.style.cursor='default';
-  }
-  if (!el('editMode').checked || !state.edit.dragging) return;
-
-  const dx=x-state.edit.start.x, dy=y-state.edit.start.y; const P=state.edit.orig; const h=state.edit.handle;
-  const set=(id,val)=>{ el(id).value=Math.max(0,snapPx(val)); };
-
-  if (h.type==='point'){
-    if (h.key==='title'){ set('tTitleX', P.title.x+dx); set('tTitleY', P.title.y+dy); }
-    else { set('tTypeX', P.type.x+dx); set('tTypeY', P.type.y+dy); }
-  } else if (h.type==='rect'){
-    const base = h.key==='art'?P.art : h.key==='rules'?P.rules : h.key==='atk'?P.atk : h.key==='hp'?P.hp : h.key==='mov'?P.mov : P.cost;
-
-    if (state.tool==='move' && h.handle==='move'){
-      if (h.key==='art'){ set('padX', base.x+dx); set('artTop', base.y+dy); }
-      else if (h.key==='rules'){ set('tRulesX', base.x+dx); set('tRulesTop', base.y+dy); }
-      else if (h.key==='atk'){ set('atkX', base.x+dx); set('atkY', base.y+dy); }
-      else if (h.key==='hp'){ set('hpX', base.x+dx); set('hpY', base.y+dy); }
-      else if (h.key==='mov'){ set('movX', base.x+dx); set('movY', base.y+dy); }
-      else if (h.key==='cost'){ set('costX', base.x+dx + (+el('costD').value)/2); set('costY', base.y+dy + (+el('costD').value)/2); }
-    }
-
-    if (state.tool==='resize' && h.handle!=='move'){
-      let nx=base.x, ny=base.y, nw=base.w, nh=base.h;
-      if (h.handle==='tl'){ nx=base.x+dx; ny=base.y+dy; nw=base.w-dx; nh=base.h-dy; }
-      if (h.handle==='tr'){ ny=base.y+dy; nw=base.w+dx; nh=base.h-dy; }
-      if (h.handle==='bl'){ nx=base.x+dx; nw=base.w-dx; nh=base.h+dy; }
-      if (h.handle==='br'){ nw=base.w+dx; nh=base.h+dy; }
-      if (h.key==='rules'){ set('tRulesX',nx); set('tRulesTop',ny); set('tRulesWidth',Math.max(40,nw)); set('tRulesHeight',Math.max(40,nh)); }
-      if (h.key==='atk'){ set('atkX',nx); set('atkY',ny); set('atkW',Math.max(32,nw)); set('atkH',Math.max(32,nh)); }
-      if (h.key==='hp'){ set('hpX',nx); set('hpY',ny); set('hpW',Math.max(32,nw)); set('hpH',Math.max(32,nh)); }
-      if (h.key==='mov'){ set('movX',nx); set('movY',ny); set('movW',Math.max(32,nw)); set('movH',Math.max(32,nh)); }
-      if (h.key==='art'){ set('padX',nx); set('artTop',ny); set('artHeight',Math.max(40,nh)); }
-      if (h.key==='cost'){ set('costX', nx + nw/2); set('costY', ny + nh/2); el('costD').value = Math.round(Math.max(20, Math.min(nw,nh))); }
-    }
-  }
-  if (state.cards.length) renderCard(state.cards[state.idx]);
-});
-$canvas.addEventListener('mouseup',()=>{ state.edit.dragging=false; });
-$canvas.addEventListener('mouseleave',()=>{ state.edit.dragging=false; });
-
-/* Mapping UI */
-function buildMapUI(){
-  const keys=Object.keys(state.map);
-  const sample=state.cards[0]||{};
-  const headers=Object.keys(sample);
-  const grid=el('mapGrid'); grid.innerHTML='';
-  keys.forEach(k=>{
-    const wrap=document.createElement('div');
-    const lab=document.createElement('label'); lab.textContent=k.toUpperCase(); wrap.appendChild(lab);
-    const sel=document.createElement('select'); sel.id='map_'+k;
-    const opts=['',...headers];
-    opts.forEach(h=>{ const o=document.createElement('option'); o.value=h; o.textContent=h||'(none)'; if((state.map[k]||'')===h) o.selected=true; sel.appendChild(o); });
-    sel.addEventListener('change',()=>{ state.map[k]=sel.value||''; if(state.cards.length) renderCard(state.cards[state.idx]); });
-    wrap.appendChild(sel); grid.appendChild(wrap);
+      setStatus('Layout imported.', 'ok');
+      syncEditor(); drawCard();
+    }catch(err){ setStatus('Layout import failed.', 'bad'); }
   });
-}
 
-/* CSV + Images */
-async function importCSV(previewOnly=false){
-  const f=el('csvFile').files[0];
-  if(!f){ alert('Choose a CSV file first.'); return; }
-  const txt=await f.text();
-  const cards=parseCSV(txt);
-  if(!cards.length){ alert('CSV parsed but found 0 data rows.'); return; }
+  // ---------- Sheet Generation (10×7 default) ----------
+  function drawCardTo(ctx, x, y, targetW, targetH){
+    // Draw the current card onto a sheet cell. We re-run draw using same logic but scaled.
+    // For performance, we render onto an offscreen canvas at 750×1050, then drawImage scaled.
+    const off = document.createElement('canvas'); off.width=750; off.height=1050; const octx = off.getContext('2d');
 
-  const H=Object.keys(cards[0]||{});
-  const auto=name=>H.find(h=>h.toLowerCase()===name.toLowerCase());
-  state.map={
-    id: auto('ID')||auto('CardID')||auto('Code')||auto('Name')||'ID',
-    name: auto('Name')||'Name',
-    faction: auto('Faction')||'Faction',
-    type: auto('Type')||'Type',
-    cost: auto('Cost')||'Cost',
-    atk: auto('ATK')||'ATK',
-    hp: auto('HP')||'HP',
-    mov: auto('MOV')||auto('Move')||auto('Movement')||'MOV',
-    rules: auto('Rules')||'Rules',
-    flavor: auto('Flavor')||'Flavor',
-    image: auto('Image')||auto('Art')||auto('Img')||'Image'
-  };
+    const c = state.cards[state.current];
+    // reuse drawCard bits (duplicated for independence)
+    octx.fillStyle='#0f0f12'; octx.fillRect(0,0,750,1050);
+    const factionColor = c?.faction==='Flame'? '#b8571b' : c?.faction==='Blood'? '#8a1d1d' : '#2b2b30';
+    octx.fillStyle=factionColor; octx.fillRect(0,0,750,90);
+    octx.fillStyle='rgba(0,0,0,.45)'; octx.beginPath(); octx.arc(70,70,46,0,Math.PI*2); octx.fill();
+    octx.fillStyle='#fff'; octx.font='700 22px system-ui'; octx.textAlign='center'; octx.textBaseline='middle'; octx.fillText((c?.name||'Untitled').slice(0,12), 70, 70);
+    octx.fillStyle='rgba(255,255,255,.06)'; octx.fillRect(40, 580, 670, 130);
 
-  state.cards=cards; state.idx=0;
-  buildMapUI();
-  await renderCard(state.cards[0]);
-  if(!previewOnly){ await buildSheet(state.cards); }
-}
+    const ax=c.artX??state.layout.artX, ay=c.artY??state.layout.artY, aw=c.artW??state.layout.artW, ah=c.artH??state.layout.artH;
+    octx.fillStyle='#151517'; octx.fillRect(ax,ay,aw,ah);
+    const img = c?._img || state.imagesByName.get(toLower(c?.name||''));
+    if(img){
+      const ir=img.width/img.height, br=aw/ah; let dw=aw, dh=ah; if(ir>br){ dh=ah; dw=dh*ir; } else { dw=aw; dh=dw/ir; }
+      const dx=ax+(aw-dw)/2, dy=ay+(ah-dh)/2; octx.drawImage(img, dx, dy, dw, dh);
+    } else { octx.strokeStyle='rgba(255,255,255,.15)'; octx.setLineDash([6,6]); octx.strokeRect(ax,ay,aw,ah); octx.setLineDash([]); octx.fillStyle='rgba(255,255,255,.35)'; octx.font='600 16px system-ui'; octx.textAlign='center'; octx.textBaseline='middle'; octx.fillText('Art Placeholder', ax+aw/2, ay+ah/2); }
 
-async function attachLocalImages(files){
-  if(!state.cards.length){ alert('Import a CSV first.'); return; }
-  const preferLocal = !!el('overwriteLocal')?.checked;
-  const map=new Map();
-  for(const f of files){ const url=URL.createObjectURL(f); map.set(normKeyTight(f.name), url); map.set(normKeyDashes(f.name), url); }
+    octx.textAlign='left'; octx.textBaseline='alphabetic'; octx.font='700 24px system-ui'; octx.fillStyle='#eae7e4';
+    octx.fillText('ATK: '+(c?.atk??'-'), 60, 625);
+    octx.fillText('HP: '+(c?.hp??'-'), 300, 625);
+    octx.fillText('MOV: '+(c?.mov??'-'), 540, 625);
+    octx.font='600 18px system-ui'; octx.fillStyle='#a8a3a0'; octx.fillText(`${c?.type||'-'}  •  Cost: ${c?.cost??0} Fragments`, 60, 665);
+    octx.fillStyle='rgba(255,255,255,.06)'; octx.fillRect(40, 730, 670, 260);
+    octx.fillStyle='#eae7e4'; octx.font='500 18px system-ui'; octx.textAlign='left'; octx.textBaseline='top';
+    wrapText(octx, (c?.rules||'Rules text…'), 60, 750, 630, 24);
 
-  let matched=0, skipped=0, missed=0;
-  for (const c of state.cards){
-    const cur=(c[state.map.image]||'').trim();
-    const idKey=normKeyTight(c[state.map.id]); const nameT=normKeyTight(c[state.map.name]); const nameD=normKeyDashes(c[state.map.name]);
-    const hit = map.get(idKey) || map.get(nameT) || map.get(nameD);
-    if(!hit){ missed++; continue; }
-    const curIsURL=isURL(cur);
-    const shouldReplace = !cur || preferLocal || !curIsURL;
-    if(shouldReplace){ c[state.map.image]=hit; matched++; } else { skipped++; }
+    ctx.drawImage(off, x, y, targetW, targetH);
   }
-  const info=el('importInfo');
-  if(info){ info.textContent = `Local images selected: ${files.length}. Attached ${matched}${skipped?`, skipped ${skipped}`:''}${missed?`, no match ${missed}`:''}.`; }
-  if(!matched && missed){ alert('No images attached. Filenames must match ID or Name (tight or dashed).'); }
-  if(state.cards.length) await renderCard(state.cards[state.idx]);
-}
 
-/* Sheet & Prompts */
-async function buildSheet(cards){
-  const cols=10, rows=7, S=4096; $sheet.width=S; $sheet.height=S; $sctx.fillStyle='#111'; $sctx.fillRect(0,0,S,S);
-  const cw=S/cols, ch=S/rows; let i=0;
-  for (const c of cards){
-    const cc=await renderCard(c);
-    const r=fitMode(cc.width, cc.height, cw, ch, 'contain');
-    const col=i%cols, row=Math.floor(i/cols); if (row>=rows) break;
-    const x=col*cw + r.x, y=row*ch + r.y;
-    $sctx.drawImage(cc, x, y, r.w, r.h);
-    i++;
+  function buildSheetTo(ctx, layout){
+    // layout: {cols, rows, cellW, cellH, padX, padY, margin}
+    ctx.save(); ctx.fillStyle='#101014'; ctx.fillRect(0,0,ctx.canvas.width, ctx.canvas.height); ctx.restore();
+    const total = state.deck.length || state.cards.length;
+    const source = state.deck.length? state.deck.map(i=>i) : state.cards.map((_,i)=>i);
+
+    // Render in order
+    let i=0; for(let r=0;r<layout.rows;r++){
+      for(let c=0;c<layout.cols;c++){
+        const idx = source[i % source.length];
+        const prev = state.current; state.current = idx; // temporarily switch
+        const x = layout.margin + c*(layout.cellW + layout.padX);
+        const y = layout.margin + r*(layout.cellH + layout.padY);
+        drawCardTo(ctx, x, y, layout.cellW, layout.cellH);
+        state.current = prev; i++;
+      }
+    }
   }
-}
 
-/* Prompts (unchanged) */
-function makePrompt(c){
-  const name=c[state.map.name]||'';
-  const faction=(''+(c[state.map.faction]||'')).toLowerCase();
-  const type=c[state.map.type]||'';
-  const flavor=c[state.map.flavor]||'';
-  const style='gritty dark fantasy, painterly brushwork, MTG key art vibe, dramatic lighting, high detail, no text, no borders';
-  const palette=faction.includes('flame')?'ember orange, soot black':faction.includes('blood')?'deep crimson, iron, dried gore':faction.includes('ash')?'bone white, pale gray, dust':'muted earth';
-  return { name, prompt: `${name} — ${type}. ${flavor}. ${style}. palette: ${palette}.` };
-}
+  function getLayoutPreset(name, targetCtx){
+    if(name==='10x7'){
+      // 7000×4900, 10 columns, 7 rows, each cell 700×700*1.5 (we keep card aspect 750x1050)
+      // We'll size cell to 650×910 with small gaps so sheet fits.
+      const W = targetCtx.canvas.width, H = targetCtx.canvas.height;
+      const cols=10, rows=7; const margin=40; const padX=20, padY=20;
+      const cellW = Math.floor((W - margin*2 - padX*(cols-1)) / cols); // ≈ 680
+      const cellH = Math.floor(cellW * (1050/750)); // keep aspect 1.4
+      return {cols, rows, cellW, cellH, padX, padY, margin};
+    }
+    // fallback 5x3 on smaller preview canvas (sheetCanvas 1400×980)
+    const W = targetCtx.canvas.width, H = targetCtx.canvas.height;
+    const cols=5, rows=3; const margin=18; const padX=10, padY=10;
+    const cellW = Math.floor((W - margin*2 - padX*(cols-1)) / cols);
+    const cellH = Math.floor(cellW * (1050/750));
+    return {cols, rows, cellW, cellH, padX, padY, margin};
+  }
 
-/* ===== Save / Load Layout ===== */
-function readLayoutFromInputs(){
-  return {
-    padX:+el('padX').value, artTop:+el('artTop').value, artHeight:+el('artHeight').value, artOffsetX:+el('artOffsetX').value,
-    tTitleX:+el('tTitleX').value, tTitleY:+el('tTitleY').value, tTitleSize:+el('tTitleSize').value,
-    tTypeX:+el('tTypeX').value, tTypeY:+el('tTypeY').value, tTypeSize:+el('tTypeSize').value,
-    tRulesX:+el('tRulesX').value, tRulesTop:+el('tRulesTop').value, tRulesWidth:+el('tRulesWidth').value, tRulesHeight:+el('tRulesHeight').value, tRulesSize:+el('tRulesSize').value,
-    atkX:+el('atkX').value, atkY:+el('atkY').value, atkW:+el('atkW').value, atkH:+el('atkH').value, atkSize:+el('atkSize').value,
-    hpX:+el('hpX').value, hpY:+el('hpY').value, hpW:+el('hpW').value, hpH:+el('hpH').value, hpSize:+el('hpSize').value,
-    movX:+el('movX').value, movY:+el('movY').value, movW:+el('movW').value, movH:+el('movH').value, movSize:+el('movSize').value,
-    costX:+el('costX').value, costY:+el('costY').value, costD:+el('costD').value, costSize:+el('costSize').value
-  };
-}
-function writeLayoutToInputs(L){
-  for(const [k,v] of Object.entries(L)){ const n=el(k); if(n) n.value = v; }
-}
-el('saveLayout').addEventListener('click', ()=>{
-  const L=readLayoutFromInputs(); const blob=new Blob([JSON.stringify(L,null,2)],{type:'application/json'});
-  const a=document.createElement('a'); a.download='card_layout.json'; a.href=URL.createObjectURL(blob); a.click();
-});
-el('loadLayout').addEventListener('click', ()=> el('layoutFile').click());
-el('layoutFile').addEventListener('change', async (e)=>{
-  const f=e.target.files[0]; if(!f) return; const txt=await f.text();
-  try{ const L=JSON.parse(txt); writeLayoutToInputs(L); if(state.cards.length) renderCard(state.cards[state.idx]); }
-  catch(err){ alert('Invalid layout file: '+err.message); }
-});
+  // Sidebar preview canvas
+  function refreshSheetPreview(){
+    const preset = getLayoutPreset(el.sheetLayout.value, sctx);
+    buildSheetTo(sctx, preset);
+  }
 
-/* ===== Wiring ===== */
-document.querySelectorAll('#toolSeg button').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    document.querySelectorAll('#toolSeg button').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active'); state.tool = btn.dataset.tool; setDiag('Tool: '+state.tool);
+  el.btnPreview.addEventListener('click', ()=>{
+    // build to modal full-res
+    const preset = getLayoutPreset('10x7', mctx);
+    buildSheetTo(mctx, preset);
+    el.modalSheetName.value = el.sheetName.value || 'SoA_Sheet_v6_1';
+    el.modal.classList.add('show'); el.modal.setAttribute('aria-hidden','false');
   });
-});
-el('selectEl').addEventListener('change',()=>{ state.edit.selected = el('selectEl').value || null; if(state.cards.length) renderCard(state.cards[state.idx]); });
+  el.modalClose.addEventListener('click', ()=>{ el.modal.classList.remove('show'); el.modal.setAttribute('aria-hidden','true'); });
+  el.modal.addEventListener('click', (e)=>{ if(e.target===el.modal){ el.modal.classList.remove('show'); el.modal.setAttribute('aria-hidden','true'); }});
+  el.modalDownload.addEventListener('click', ()=>{ downloadBlobPNG(el.modalSheetCanvas, el.modalSheetName.value||'SoA_Sheet_v6_1'); });
+  el.btnDownload.addEventListener('click', ()=>{
+    // download whatever the sidebar layout is targeting; for TTS, recommend modal for full res
+    if(el.sheetLayout.value==='10x7'){
+      const preset = getLayoutPreset('10x7', mctx);
+      buildSheetTo(mctx, preset);
+      downloadBlobPNG(el.modalSheetCanvas, el.sheetName.value||'SoA_Sheet_v6_1');
+    } else {
+      refreshSheetPreview();
+      downloadBlobPNG(el.sheetCanvas, el.sheetName.value||'SoA_Sheet_v6_1_preview');
+    }
+  });
 
-el('loadCSV').addEventListener('click', async ()=>{
-  try{
-    if(!(el('csvFile').files && el('csvFile').files.length)){
-      await new Promise(res=>{
-        const once = async ()=>{ el('csvFile').removeEventListener('change', once); await importCSV(false); res(); };
-        el('csvFile').addEventListener('change', once); el('csvFile').click();
-      });
-    } else { await importCSV(false); }
-  }catch(e){ alert('Import CSV failed: '+e.message); }
-});
-el('previewCSV').addEventListener('click', async ()=>{ try{
-  if(!(el('csvFile').files && el('csvFile').files.length)){
-    await new Promise(res=>{ const once = async ()=>{ el('csvFile').removeEventListener('change', once); await importCSV(true); res(); }; el('csvFile').addEventListener('change', once); el('csvFile').click(); });
-  } else { await importCSV(true); }
-} catch(e){ alert('Preview failed: '+e.message);} });
-
-el('importImages').addEventListener('click', ()=>{ const input=el('imgFiles'); if(!input){ alert('Missing hidden image input'); return; } input.value=''; input.click(); });
-el('imgFiles').addEventListener('change', async (e)=>{ try{ const files=[...e.target.files]; if(!files.length) return; await attachLocalImages(files); }catch(err){ alert('Failed to import images: '+err.message); } });
-
-['outSize','palette','border','radius','frameOpacity','bgUrl','padX','artTop','artHeight','artOffsetX','artFit','tTitleSize','tTitleX','tTitleY','tTypeSize','tTypeX','tTypeY','tRulesSize','tRulesX','tRulesTop','tRulesWidth','tRulesHeight','atkSize','atkX','atkY','atkW','atkH','hpSize','hpX','hpY','hpW','hpH','movSize','movX','movY','movW','movH','watermark','costX','costY','costD','costSize','imgMode','imgExt','imgSlug']
-  .forEach(id=>{ const n=el(id); if(n) n.addEventListener('input',()=>{ if(state.cards.length) renderCard(state.cards[state.idx]); }); });
-
-el('editMode').addEventListener('change',()=>{ const b=el('toggleEdit'); b.classList.toggle('active', el('editMode').checked); b.textContent = el('editMode').checked ? '✥ Edit Mode: ON' : '✥ Edit Mode: OFF'; if(state.cards.length) renderCard(state.cards[state.idx]); });
-el('toggleEdit').addEventListener('click',()=>{ const c=el('editMode'); c.checked=!c.checked; const b=el('toggleEdit'); b.classList.toggle('active', c.checked); b.textContent = c.checked ? '✥ Edit Mode: ON' : '✥ Edit Mode: OFF'; if(state.cards.length) renderCard(state.cards[state.idx]); });
-
-el('nextCard').addEventListener('click',()=>{ if(!state.cards.length) return; state.idx=(state.idx+1)%state.cards.length; renderCard(state.cards[state.idx]); });
-el('dlCard').addEventListener('click',()=>{ if(!state.cards.length){ alert('No card rendered'); return; } const a=document.createElement('a'); a.download=(state.cards[state.idx][state.map.name]||'card')+'.png'; a.href=$canvas.toDataURL('image/png'); a.click(); });
-el('buildSheet').addEventListener('click', async()=>{ if(!state.cards.length){ alert('Import a CSV first.'); return; } await buildSheet(state.cards); });
-el('dlSheet').addEventListener('click',()=>{ const a=document.createElement('a'); a.download='tts_sheet_10x7.png'; a.href=$sheet.toDataURL('image/png'); a.click(); });
-
-el('prompts').addEventListener('click',()=>{ if(!state.cards.length){ setDiag('Prompts: no cards'); return; } const list=state.cards.map(c=>makePrompt(c)); el('promptBox').value=JSON.stringify(list,null,2); setDiag('Prompts generated'); });
-
-/* Frame overlay controls */
-el('frameFile').addEventListener('change', async (e)=>{ const f=e.target.files[0]; if(!f) return; const url=URL.createObjectURL(f); state.frame.src=url; state.frame.img=await loadImage(url); state.frame.enabled=true; el('useFrame').checked=true; if(state.cards.length) renderCard(state.cards[state.idx]); });
-el('frameUrl').addEventListener('change', async ()=>{ const url=el('frameUrl').value.trim(); if(!url) return; try{ state.frame.src=url; state.frame.img=await loadImage(url); state.frame.enabled=true; el('useFrame').checked=true; if(state.cards.length) renderCard(state.cards[state.idx]); } catch(err){ alert('Failed to load overlay: '+err.message); }});
-el('frameAlpha').addEventListener('input',()=>{ state.frame.alpha=Math.max(0,Math.min(1, +el('frameAlpha').value||1)); if(state.cards.length) renderCard(state.cards[state.idx]); });
-el('useFrame').addEventListener('change',()=>{ state.frame.enabled=el('useFrame').checked; if(state.cards.length) renderCard(state.cards[state.idx]); });
-el('frameAbove').addEventListener('change',()=>{ state.frame.above=el('frameAbove').checked; if(state.cards.length) renderCard(state.cards[state.idx]); });
-el('clearFrame').addEventListener('click',()=>{ state.frame={img:null,alpha:1,enabled:false,above:false,src:null}; el('frameFile').value=''; el('frameUrl').value=''; el('frameAlpha').value='1'; el('useFrame').checked=false; el('frameAbove').checked=false; if(state.cards.length) renderCard(state.cards[state.idx]); });
-
-/* Auto preview on CSV change */
-el('csvFile').addEventListener('change', async()=>{ try{ await importCSV(true); setDiag('CSV change: previewed'); }catch(e){ alert('CSV preview failed: '+e.message); }});
+  // ---------- Init ----------
+  refreshSheetPreview();
+  setStatus('Ready. Load CSV to begin.');
+})();
 </script>
 </body>
 </html>
