@@ -47,7 +47,7 @@
   .hr{height:1px;background:var(--border);margin:6px 0}
 
   /* Draggable control — large center grab + corners */
-  .handle{position:absolute;border:1px dashed #7a7a80;border-radius:8px;pointer-events:none}
+  .handle{position:absolute;border:1px dashed #7a7a80;border-radius:8px;pointer-events:auto;z-index:20}
   .handle .grab{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--border);display:grid;place-items:center;font-size:11px;color:var(--muted);pointer-events:auto;cursor:move}
   .handle .dot{position:absolute;width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid var(--border);pointer-events:auto}
   .handle .dot.tl{left:-7px;top:-7px;cursor:nwse-resize}
@@ -636,24 +636,70 @@
 
   // event helpers on handle
   function onGrabDown(e){
-    e.preventDefault(); dragTarget='move';
-    start={ mx:e.clientX, my:e.clientY, x:+el.artX.value, y:+el.artY.value, w:+el.artW.value, h:+el.artH.value };
+    e.preventDefault();
+    dragTarget='move';
+    const ex = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
+    const ey = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
+    start={ mx:ex, my:ey, x:+el.artX.value, y:+el.artY.value, w:+el.artW.value, h:+el.artH.value };
+    window.addEventListener('mousemove', onGrabMove);
+    window.addEventListener('mouseup', onGrabUp);
+    window.addEventListener('pointermove', onGrabMove);
+    window.addEventListener('pointerup', onGrabUp);
+    window.addEventListener('touchmove', onGrabMove, {passive:false});
+    window.addEventListener('touchend', onGrabUp);
+  };
     window.addEventListener('mousemove', onGrabMove);
     window.addEventListener('mouseup', onGrabUp);
   }
   function onCornerDown(kind){
-    return function(e){ e.preventDefault(); dragTarget=kind;
-      start={ mx:e.clientX, my:e.clientY, x:+el.artX.value, y:+el.artY.value, w:+el.artW.value, h:+el.artH.value };
+    return function(e){
+      e.preventDefault(); dragTarget=kind;
+      const ex = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
+      const ey = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
+      start={ mx:ex, my:ey, x:+el.artX.value, y:+el.artY.value, w:+el.artW.value, h:+el.artH.value };
+      window.addEventListener('mousemove', onGrabMove);
+      window.addEventListener('mouseup', onGrabUp);
+      window.addEventListener('pointermove', onGrabMove);
+      window.addEventListener('pointerup', onGrabUp);
+      window.addEventListener('touchmove', onGrabMove, {passive:false});
+      window.addEventListener('touchend', onGrabUp);
+    }
+  };
       window.addEventListener('mousemove', onGrabMove);
       window.addEventListener('mouseup', onGrabUp);
     }
   }
   function onGrabMove(e){
-    const dx=e.clientX-start.mx, dy=e.clientY-start.my;
+    const cx = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
+    const cy = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
+    const dx=cx-start.mx, dy=cy-start.my;
+    const minSize = 24; // prevent flipping/too-small
     if(dragTarget==='move'){
       el.artX.value = start.x + dx;
       el.artY.value = start.y + dy;
     } else if(dragTarget==='tl'){
+      let w = start.w - dx, h = start.h - dy;
+      if(w < minSize) w = minSize; if(h < minSize) h = minSize;
+      el.artX.value = start.x + (start.w - w);
+      el.artY.value = start.y + (start.h - h);
+      el.artW.value = w; el.artH.value = h;
+    } else if(dragTarget==='tr'){
+      let w = start.w + dx, h = start.h - dy;
+      if(w < minSize) w = minSize; if(h < minSize) h = minSize;
+      el.artY.value = start.y + (start.h - h);
+      el.artW.value = w; el.artH.value = h;
+    } else if(dragTarget==='bl'){
+      let w = start.w - dx, h = start.h + dy;
+      if(w < minSize) w = minSize; if(h < minSize) h = minSize;
+      el.artX.value = start.x + (start.w - w);
+      el.artW.value = w; el.artH.value = h;
+    } else if(dragTarget==='br'){
+      let w = start.w + dx, h = start.h + dy;
+      if(w < minSize) w = minSize; if(h < minSize) h = minSize;
+      el.artW.value = w; el.artH.value = h;
+    }
+    drawCard();
+  } else if(dragTarget==='tl'){
       el.artX.value = start.x + dx; el.artY.value = start.y + dy;
       el.artW.value = start.w - dx; el.artH.value = start.h - dy;
     } else if(dragTarget==='tr'){
@@ -666,8 +712,13 @@
     drawCard();
   }
   function onGrabUp(){
-    dragTarget=null; window.removeEventListener('mousemove', onGrabMove); window.removeEventListener('mouseup', onGrabUp);
-    // persist into current card
+    dragTarget=null;
+    window.removeEventListener('mousemove', onGrabMove);
+    window.removeEventListener('mouseup', onGrabUp);
+    window.removeEventListener('pointermove', onGrabMove);
+    window.removeEventListener('pointerup', onGrabUp);
+    window.removeEventListener('touchmove', onGrabMove);
+    window.removeEventListener('touchend', onGrabUp);
     const c=state.cards[state.current]; if(!c) return;
     c.artX=+el.artX.value; c.artY=+el.artY.value; c.artW=+el.artW.value; c.artH=+el.artH.value;
   }
@@ -677,6 +728,12 @@
   handle.querySelector('.tr').addEventListener('mousedown', onCornerDown('tr'));
   handle.querySelector('.bl').addEventListener('mousedown', onCornerDown('bl'));
   handle.querySelector('.br').addEventListener('mousedown', onCornerDown('br'));
+  // Pointer/touch support for broader compatibility
+  handle.querySelector('.grab').addEventListener('pointerdown', onGrabDown);
+  handle.querySelector('.tl').addEventListener('pointerdown', onCornerDown('tl'));
+  handle.querySelector('.tr').addEventListener('pointerdown', onCornerDown('tr'));
+  handle.querySelector('.bl').addEventListener('pointerdown', onCornerDown('bl'));
+  handle.querySelector('.br').addEventListener('pointerdown', onCornerDown('br'));
 
   // ---------- Save/Load Layout ----------
   el.btnExportLayout.addEventListener('click', ()=>{
