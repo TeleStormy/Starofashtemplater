@@ -26,8 +26,8 @@
   .row{display:flex; gap:8px; align-items:center}
   .row + .row{margin-top:8px}
   label{font-size:12px; color:var(--muted)}
-  input[type="text"], input[type="number"], select{width:100%; background:#0f0f12; color:var(--text); border:1px solid var(--border); border-radius:10px; padding:8px 10px; font-size:13px}
-  input[type="range"]{width:100%}
+  input[type=\"text\"], input[type=\"number\"], select{width:100%; background:#0f0f12; color:var(--text); border:1px solid var(--border); border-radius:10px; padding:8px 10px; font-size:13px}
+  input[type=\"range\"]{width:100%}
   button{background:#18181b; color:var(--text); border:1px solid var(--border); padding:8px 10px; border-radius:10px; font-size:13px; cursor:pointer}
   button.primary{background:var(--accent)}
   .danger{color:#fff; background:var(--bad); border-color:#b94141}
@@ -295,22 +295,19 @@
 
   // ------- CSV Loading (robust parser) -------
   function parseCSV(text){
-    text = String(text).replace(/^﻿/, '').replace(/
-/g,'');
+    text = String(text).replace(/^\uFEFF/, '').replace(/\r/g,''); // remove BOM + CR
     let delim = ',';
-    const first = (text.split('
-')[0]||'');
+    const first = (text.split('\n')[0]||'');
     const count = (s, rx) => (s.match(rx) || []).length;
     if (count(first, /;/g) > count(first, /,/g)) delim = ';';
-    if (count(first, /	/g) > count(first, new RegExp('\' + delim, 'g'))) delim = '	';
+    if (count(first, /\t/g) > count(first, new RegExp('\\' + delim, 'g'))) delim = '\t';
 
-    const lines = text.split('
-').filter(l=>l.trim().length);
-    const headerLine = lines.shift();
+    const lines = text.split('\n').filter(l=>l.trim().length);
+    const headerLine = lines.shift() || '';
     const headers = splitCSVLine(headerLine, delim).map(s=>s.trim());
     const rows = lines.map(line=>{
       const cells = splitCSVLine(line, delim);
-      const row={}; headers.forEach((h,i)=> row[h] = (cells[i]??'').trim());
+      const row={}; headers.forEach((h,i)=> row[h] = (cells[i]||'').trim());
       return row;
     });
     setDiag(`CSV parsed with "${delim}" — ${rows.length} rows`);
@@ -399,7 +396,6 @@
     q('#type').textContent = fldType.value || 'Type — Subtype';
     q('#rules').textContent = fldRules.value || 'Rules text...';
     q('#flavor').textContent = fldFlavor.value || '“Flavor text...”';
-
     bATK.textContent = q('#fldATK').value;
     bHP.textContent  = q('#fldHP').value;
     bMOV.textContent = q('#fldMOV').value;
