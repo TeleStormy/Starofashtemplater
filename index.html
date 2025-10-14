@@ -3,873 +3,478 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater v6.1</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.1)</title>
 <style>
   :root{
-    --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#a8a3a0;
+    --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
     --accent:#c0392b; --ash:#2b2b30; --blood:#8a1d1d; --flame:#b8571b; --border:#2b2b30; --ok:#57d38a; --warn:#ffb84d; --bad:#ff6b6b;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{margin:0;background:radial-gradient(1000px 700px at 70% 10%, rgba(200,60,40,.08), transparent 50%),
-                 radial-gradient(1200px 900px at 15% 90%, rgba(255,255,255,.03), transparent 60%), var(--bg);
-       color:var(--text);font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial}
-  .wrap{display:grid;grid-template-columns:340px 1fr;gap:14px;height:100%;}
-  header{grid-column:1/-1;padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0));position:sticky;top:0;z-index:10}
-  header h1{font-size:18px;margin:0;font-weight:600;letter-spacing:.4px}
-  header .tag{padding:3px 8px;border:1px solid var(--border);border-radius:8px;color:var(--muted)}
-  .left{padding:12px;overflow:auto;border-right:1px solid var(--border);background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0))}
-  .section{border:1px solid var(--border);background:var(--panel);border-radius:14px;margin-bottom:12px}
-  .section h2{margin:0;padding:10px 12px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--border);}
-  .section .body{padding:10px 12px;display:grid;gap:8px}
-  label{font-size:12px;color:var(--muted)}
-  input[type="text"], input[type="number"], select, textarea{width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:10px}
-  input[type="file"]{width:100%}
-  button{background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:10px;cursor:pointer}
-  button.primary{background:var(--accent);border-color:#a92f22}
-  button.ghost{background:transparent}
-  .row{display:flex;gap:8px;align-items:center}
-  .row > *{flex:1}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .right{padding:12px;overflow:auto}
-  .board{display:grid;grid-template-columns:repeat(2, minmax(300px, 1fr)); gap:12px}
-  .cardPanel,.sheetPanel{border:1px solid var(--border);background:var(--panel);border-radius:14px}
-  .cardPanel h2,.sheetPanel h2{margin:0;padding:10px 12px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--border)}
-  .canvasWrap{position:relative;padding:10px}
-  canvas{background:#111;border:1px dashed var(--ash);border-radius:12px;max-width:100%}
-  .toolbar{display:flex;gap:8px;flex-wrap:wrap}
-  .badge{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-weight:600;border:1px solid var(--border);font-size:12px}
-  .badge.flame{background:rgba(184,87,27,.15)}
-  .badge.blood{background:rgba(138,29,29,.15)}
-  .badge.ash{background:rgba(43,43,48,.25)}
-  .muted{color:var(--muted);font-size:12px}
-  .help{font-size:12px;color:var(--muted)}
-  .hr{height:1px;background:var(--border);margin:6px 0}
+  body{margin:0;background:radial-gradient(1000px 700px at 70% 10%, rgba(200,60,40,.10), transparent 50%),
+                 radial-gradient(1200px 900px at 15% 85%, rgba(200,60,40,.06), transparent 60%), var(--bg); color:var(--text);
+       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial}
+  .app{display:grid; grid-template-columns: 300px 1fr 340px; grid-template-rows: 56px 1fr; gap:12px; height:100%; padding:12px}
+  header{grid-column:1/4; display:flex; align-items:center; justify-content:space-between; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:10px 14px}
+  header h1{font-size:16px; margin:0; letter-spacing:.4px; font-weight:600}
+  header .tag{padding:4px 8px; border-radius:999px; font-size:12px; background:rgba(255,255,255,.06); border:1px solid var(--border)}
+  .panel{background:var(--panel); border:1px solid var(--border); border-radius:14px; overflow:hidden}
+  .left{padding:12px; display:flex; flex-direction:column; gap:12px}
+  .right{padding:12px; display:flex; flex-direction:column; gap:12px}
+  .section{background:var(--panel-2); border:1px solid var(--border); border-radius:12px; padding:10px}
+  .section h3{margin:0 0 8px; font-size:13px; color:var(--muted); font-weight:600}
+  .row{display:flex; gap:8px; align-items:center}
+  .row + .row{margin-top:8px}
+  label{font-size:12px; color:var(--muted)}
+  input[type="text"], input[type="number"], select{width:100%; background:#0f0f12; color:var(--text); border:1px solid var(--border); border-radius:10px; padding:8px 10px; font-size:13px}
+  input[type="range"]{width:100%}
+  button{background:#18181b; color:var(--text); border:1px solid var(--border); padding:8px 10px; border-radius:10px; font-size:13px; cursor:pointer}
+  button.primary{background:var(--accent)}
+  .danger{color:#fff; background:var(--bad); border-color:#b94141}
+  .ok{color:#0c1; background:rgba(87,211,138,.12); border-color:#2a6}
+  .grid{display:grid; grid-template-columns: 1fr}
+  .canvas-wrap{position:relative; background:#0e0e10; border-left:1px dashed #222; border-right:1px dashed #222}
+  .toolbar{display:flex; gap:8px}
 
-  /* Draggable control — large center grab + corners */
-  .handle{position:absolute;border:1px dashed #7a7a80;border-radius:8px;pointer-events:auto;z-index:20;box-shadow:0 0 0 2px rgba(0,0,0,.25)}
-  .handle .grab{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid var(--border);display:grid;place-items:center;font-size:11px;color:var(--muted);pointer-events:auto;cursor:move}
-  .handle .dot{position:absolute;width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid var(--border);pointer-events:auto}
-  .handle .dot.tl{left:-7px;top:-7px;cursor:nwse-resize}
-  .handle .dot.tr{right:-7px;top:-7px;cursor:nesw-resize}
-  .handle .dot.bl{left:-7px;bottom:-7px;cursor:nesw-resize}
-  .handle .dot.br{right:-7px;bottom:-7px;cursor:nwse-resize}
+  /* Classic layout center canvas */
+  .center{position:relative}
+  .stage{position:relative; margin:20px auto; width:744px; height:1039px; /* 62x86mm @ 300dpi approx scaled */
+         background:#111; border:1px solid var(--border); border-radius:16px; box-shadow:0 10px 40px rgba(0,0,0,.5)}
+  .card-bg{position:absolute; inset:0; background:linear-gradient(180deg,#201f22,#141316)}
+  .frame{position:absolute; inset:10px; border:3px solid #2e2e34; border-radius:14px}
+  .faction-border{position:absolute; inset:0; border-radius:16px; pointer-events:none}
+  .faction-border.flame{box-shadow:0 0 0 3px var(--flame) inset, 0 0 30px rgba(184,87,27,.25) inset}
+  .faction-border.blood{box-shadow:0 0 0 3px var(--blood) inset, 0 0 30px rgba(138,29,29,.25) inset}
+  .faction-border.ash{box-shadow:0 0 0 3px var(--ash) inset, 0 0 30px rgba(43,43,48,.25) inset}
 
-  /* Modal */
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:100}
-  .modal.show{display:flex}
-  .modal .card{width:min(720px,92vw);background:var(--panel);border:1px solid var(--border);border-radius:16px;box-shadow:0 20px 60px #0007}
-  .modal header{position:unset;border-bottom:1px solid var(--border)}
-  .modal .content{padding:12px}
+  /* Art layer with padding and move handle */
+  .art{position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); max-width:none; user-select:none; pointer-events:none}
+  .art-box{position:absolute; inset:80px 50px 210px 50px; border:2px dashed rgba(255,255,255,.08); border-radius:10px}
+  .art-handle{position:absolute; left:50%; top:50%; width:80px; height:80px; transform:translate(-50%, -50%);
+              border-radius:12px; background:rgba(255,255,255,.06); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--muted);
+              font-size:12px; letter-spacing:.3px; cursor:grab;}
+  .art-handle:active{cursor:grabbing}
 
-  .pill{border:1px solid var(--border);border-radius:999px;padding:4px 10px;color:var(--muted);font-size:12px}
+  /* Text fields */
+  .name{position:absolute; left:24px; top:18px; right:24px; font-weight:700; font-size:28px; letter-spacing:.4px}
+  .type-line{position:absolute; left:24px; top:58px; right:24px; color:var(--muted); font-size:14px}
+  .rules{position:absolute; left:24px; right:24px; bottom:86px; min-height:150px; font-size:14px; line-height:1.35; background:rgba(255,255,255,.03); padding:12px 14px; border-radius:10px; border:1px solid var(--border)}
+  .flavor{position:absolute; left:24px; right:24px; bottom:24px; font-size:12px; color:#c8c3bd; font-style:italic}
 
-  /* Deck list */
-  .deck{display:grid;grid-template-columns:1fr auto;gap:8px;max-height:200px;overflow:auto}
-  .deck .item{display:grid;grid-template-columns:1fr 32px;align-items:center;gap:8px;border:1px solid var(--border);padding:6px 8px;border-radius:8px;background:var(--panel-2)}
-  .deck .item button{padding:4px 6px}
+  /* Badges */
+  .badges{position:absolute; right:18px; top:18px; display:flex; gap:8px}
+  .badge{min-width:42px; height:42px; border-radius:999px; background:rgba(0,0,0,.35); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-weight:700}
 
-  code.inline{background:rgba(255,255,255,.06);padding:2px 6px;border-radius:6px;border:1px solid var(--border)}
+  /* Edit boxes */
+  .edit-rect{position:absolute; border:2px solid #4da3ff; border-radius:10px; pointer-events:none}
+  .corner{position:absolute; width:14px; height:14px; border-radius:50%; background:#4da3ff; border:2px solid #0b2340}
+  .corner.tl{left:-9px; top:-9px} .corner.tr{right:-9px; top:-9px} .corner.bl{left:-9px; bottom:-9px} .corner.br{right:-9px; bottom:-9px}
+
+  .muted{color:var(--muted)}
+  .small{font-size:12px}
+  .hint{font-size:12px; color:var(--muted)}
+  .pill{border:1px solid var(--border); padding:2px 8px; border-radius:999px; font-size:11px; color:var(--muted)}
+  .sep{height:1px; background:var(--border); margin:8px -10px}
 </style>
 </head>
 <body>
-  <header>
-    <h1>Star of Ash — Card Templater <span class="tag">v6.1</span></h1>
-    <span class="pill">Fixes: CSV import · Mass image import · MOV badge · 10×7 TTS sheet · Preview name · Big drag handle · Save/Load layout · Toggle Art Box</span>
-  </header>
+  <div class="app">
+    <header>
+      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.1</span></h1>
+      <div class="toolbar">
+        <button id="btn-export-png" class="primary">Export PNG</button>
+        <button id="btn-save-layout" title="Save your current field positions to localStorage">Save Layout</button>
+        <button id="btn-load-layout">Load Layout</button>
+        <button id="btn-reset-layout" class="danger">Reset</button>
+      </div>
+    </header>
 
-  <div class="wrap">
-    <div class="left">
+    <!-- Left controls -->
+    <aside class="panel left">
       <div class="section">
-        <h2>1) Data Import</h2>
-        <div class="body">
-          <div class="grid">
-            <div>
-              <label>Load Cards CSV</label>
-              <input id="csvFile" type="file" accept=".csv" />
-            </div>
-            <div>
-              <label>Mass Import Images (folder)</label>
-              <input id="imgFolder" type="file" webkitdirectory directory multiple />
-            </div>
-          </div>
-          <div class="help">Images are matched by <b>card name</b>. Example: a card named <code class="inline">Ashling Initiate</code> expects an image file named <code class="inline">Ashling Initiate.png</code> (case-insensitive). You can still set a per-card image override in the editor below.</div>
-          <div class="row">
-            <button id="btnExportLayout">Export Layout JSON</button>
-            <button id="btnImportLayout">Import Layout JSON</button>
-            <input id="layoutFile" type="file" accept="application/json" style="display:none" />
-          </div>
-        </div>
+        <h3>CSV / Images</h3>
+        <div class="row"><input type="file" id="csvFile" accept=".csv"></div>
+        <div class="row"><button id="btn-load-csv">Load CSV</button></div>
+        <div class="row"><label class="small">Mass Import Images</label></div>
+        <div class="row"><input type="file" id="imgFiles" multiple accept="image/*"></div>
+        <div class="row hint">Filenames should match <b>Art</b> column or <b>Name</b> if Art is missing (case-insensitive, extension ignored).</div>
       </div>
 
       <div class="section">
-        <h2>2) Card Editor</h2>
-        <div class="body">
-          <div class="grid">
-            <div>
-              <label>Card</label>
-              <select id="cardSelect"></select>
-            </div>
-            <div>
-              <label>Faction</label>
-              <select id="faction">
-                <option>Flame</option>
-                <option>Blood</option>
-                <option>Ash</option>
-              </select>
-            </div>
-          </div>
-          <div class="grid">
-            <div>
-              <label>Name</label>
-              <input id="name" type="text" />
-            </div>
-            <div>
-              <label>Type</label>
-              <input id="type" type="text" placeholder="Unit / Relic / Spell" />
-            </div>
-          </div>
-          <div class="grid">
-            <div>
-              <label>ATK</label>
-              <input id="atk" type="number" />
-            </div>
-            <div>
-              <label>HP</label>
-              <input id="hp" type="number" />
-            </div>
-          </div>
-          <div class="grid">
-            <div>
-              <label>MOV (Movement)</label>
-              <input id="mov" type="number" />
-            </div>
-            <div>
-              <label>Cost (Fragments)</label>
-              <input id="cost" type="number" />
-            </div>
-          </div>
-          <div>
-            <label>Rules Text</label>
-            <textarea id="rules" rows="4" placeholder="Rules text..."></textarea>
-          </div>
-          <div class="grid">
-            <div>
-              <label>Art Override (optional)</label>
-              <input id="artFile" type="file" accept="image/*" />
-            </div>
-            <div>
-              <label>Art Positioning</label>
-              <div class="row">
-                <input id="artX" type="number" placeholder="x" />
-                <input id="artY" type="number" placeholder="y" />
-                <input id="artW" type="number" placeholder="w" />
-                <input id="artH" type="number" placeholder="h" />
-              </div>
-              <div class="help">Left/Right movement supported. Use the large center grab to move; corner dots to resize.</div>
-            </div>
-          </div>
-          <div class="toolbar">
-            <button id="btnSaveCard" class="primary">Save Card Edits</button>
-            <button id="btnResetArt" class="ghost">Reset Art Box</button>
-            <button id="btnToggleHandle" class="ghost">Toggle Art Box</button>
-            <span class="muted" id="status"></span>
-          </div>
+        <h3>Art Controls</h3>
+        <div class="row"><label>X Offset</label><input type="range" id="artX" min="-400" max="400" value="0"></div>
+        <div class="row"><label>Y Offset</label><input type="range" id="artY" min="-400" max="400" value="0"></div>
+        <div class="row"><label>Scale</label><input type="range" id="artScale" min="20" max="300" value="100"></div>
+        <div class="row"><label>Padding</label><input type="range" id="artPad" min="0" max="120" value="0"></div>
+        <div class="row"><button id="fitArt" class="ok">Fit to Frame</button></div>
+      </div>
+
+      <div class="section">
+        <h3>Card Fields</h3>
+        <div class="row"><label>Name</label><input id="fldName" type="text" placeholder="Card Name"></div>
+        <div class="row"><label>Type</label><input id="fldType" type="text" placeholder="Unit — Warrior"></div>
+        <div class="row"><label>Rules</label><input id="fldRules" type="text" placeholder="Rules text..."></div>
+        <div class="row"><label>Flavor</label><input id="fldFlavor" type="text" placeholder="Flavor..."></div>
+        <div class="row">
+          <label>Faction</label>
+          <select id="fldFaction">
+            <option value="flame">Flame</option>
+            <option value="blood">Blood</option>
+            <option value="ash" selected>Ash</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>ATK</label><input id="fldATK" type="number" value="1">
+          <label>HP</label><input id="fldHP" type="number" value="1">
+          <label>MOV</label><input id="fldMOV" type="number" value="1">
         </div>
       </div>
 
       <div class="section">
-        <h2>3) Deck</h2>
-        <div class="body">
-          <div class="row">
-            <button id="btnAddToDeck">Add Selected Card</button>
-            <button id="btnClearDeck" class="ghost">Clear Deck</button>
+        <h3>Deck Nav</h3>
+        <div class="row"><button id="prev">◀ Prev</button><button id="next">Next ▶</button></div>
+      </div>
+    </aside>
+
+    <!-- Center canvas -->
+    <main class="panel center">
+      <div class="canvas-wrap">
+        <div id="stage" class="stage">
+          <div class="card-bg"></div>
+          <div id="factionBorder" class="faction-border ash"></div>
+          <div class="frame"></div>
+
+          <div id="artBox" class="art-box">
+            <img id="art" class="art" alt="art" />
+            <div id="artHandle" class="art-handle" title="Drag to move artwork">Move Art</div>
           </div>
-          <div id="deckList" class="deck"></div>
+
+          <div id="name" class="name">Name</div>
+          <div id="type" class="type-line">Type — Subtype</div>
+          <div id="rules" class="rules">Rules text...</div>
+          <div id="flavor" class="flavor">“Flavor text...”</div>
+
+          <div class="badges">
+            <div id="bMOV" class="badge" title="Movement">1</div>
+            <div id="bATK" class="badge" title="Attack">1</div>
+            <div id="bHP" class="badge" title="Health">1</div>
+          </div>
+
+          <!-- Visible edit rectangle for the rules box to show larger grab area (classic look) -->
+          <div id="rulesEdit" class="edit-rect" style="left:22px; right:22px; bottom:80px; height:170px; display:none">
+            <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+          </div>
         </div>
+      </div>
+    </main>
+
+    <!-- Right inspector -->
+    <aside class="panel right">
+      <div class="section">
+        <h3>Selection & Layout</h3>
+        <div class="row">
+          <select id="selElement">
+            <option value="name">Name</option>
+            <option value="type">Type</option>
+            <option value="rules">Rules Box</option>
+            <option value="flavor">Flavor</option>
+          </select>
+        </div>
+        <div class="row"><label>X</label><input id="posX" type="number" value="24"><label>Y</label><input id="posY" type="number" value="18"></div>
+        <div class="row"><label>W</label><input id="posW" type="number" value="696"><label>H</label><input id="posH" type="number" value="40"></div>
+        <div class="row"><button id="applyLayout">Apply</button><button id="toggleGuides">Toggle Guides</button></div>
+        <div class="row hint">Tip: Use the big blue rectangle to move/resize the Rules box — easier than tiny dots.</div>
       </div>
 
       <div class="section">
-        <h2>4) Build Sheets</h2>
-        <div class="body">
-          <div class="grid">
-            <div>
-              <label>Sheet Name</label>
-              <input id="sheetName" type="text" placeholder="e.g., Flame_Test_v6_1" />
-            </div>
-            <div>
-              <label>TTS Layout</label>
-              <select id="sheetLayout">
-                <option value="10x7">10×7 (TTS)</option>
-                <option value="5x3">5×3</option>
-              </select>
-            </div>
-          </div>
-          <div class="row">
-            <button id="btnPreview">Preview Sheet</button>
-            <button id="btnDownload" class="primary">Download PNG</button>
-          </div>
-          <div class="help">10×7 canvas is generated at 7000×4900px (700px/card @ 10 columns × 7 rows) to map cleanly onto TTS 10×7 template.</div>
-        </div>
+        <h3>Import / Export</h3>
+        <div class="row"><button id="btn-export-json">Export Layout JSON</button></div>
+        <div class="row"><input type="file" id="importJson" accept="application/json"></div>
       </div>
 
-    </div>
-
-    <div class="right">
-      <div class="board">
-        <div class="cardPanel">
-          <h2>Live Card Preview</h2>
-          <div class="canvasWrap">
-            <canvas id="cardCanvas" width="750" height="1050"></canvas>
-            <div id="cardHandle" class="handle" hidden>
-              <div class="grab">Move</div>
-              <div class="dot tl"></div>
-              <div class="dot tr"></div>
-              <div class="dot bl"></div>
-              <div class="dot br"></div>
-            </div>
-          </div>
-          <div class="hr"></div>
-          <div class="toolbar" style="padding:10px">
-            <span class="badge ash">ATK <span id="bATK">-</span></span>
-            <span class="badge ash">HP <span id="bHP">-</span></span>
-            <span class="badge ash">MOV <span id="bMOV">-</span></span>
-            <span class="badge" id="bFaction">Faction: -</span>
-          </div>
-        </div>
-        <div class="sheetPanel">
-          <h2>Sheet Preview</h2>
-          <div class="canvasWrap">
-            <canvas id="sheetCanvas" width="1400" height="980" style="background:#0e0e10"></canvas>
-          </div>
-        </div>
+      <div class="section">
+        <h3>Diagnostics</h3>
+        <div id="diag" class="small muted">Ready.</div>
       </div>
-    </div>
+    </aside>
   </div>
 
-  <!-- Modal for full-size sheet preview + name input (already in sidebar, but handy here too) -->
-  <div id="previewModal" class="modal" aria-hidden="true">
-    <div class="card">
-      <header>
-        <h1>Sheet Preview</h1>
-        <span class="tag">10×7 TTS</span>
-      </header>
-      <div class="content">
-        <div class="row" style="margin-bottom:10px">
-          <input id="modalSheetName" type="text" placeholder="Sheet file name" />
-          <button id="modalClose">Close</button>
-          <button id="modalDownload" class="primary">Download</button>
-        </div>
-        <canvas id="modalSheetCanvas" width="7000" height="4900" style="width:100%;height:auto;background:#0e0e10"></canvas>
-      </div>
-    </div>
-  </div>
-
-<script>
-/**
- * Star of Ash — Card Templater v6.1
- * One-file build. Focus: reliability and UX fixes requested.
- */
-(function(){
-  // ---------- State ----------
+  <script>
+  // ------- State -------
   const state = {
-    cards: [], // loaded from CSV
-    imagesByName: new Map(), // name(lower) -> ImageBitmap
-    deck: [], // array of card indices
-    current: 0,
-    layout: { // art box defaults in card-canvas space (750x1050)
-      artX: 75, artY: 140, artW: 600, artH: 420
-    },
+    csvRows: [],
+    rowIndex: 0,
+    images: new Map(), // key: basename (lower) -> objectURL
+    layout: null,
+    guides: false,
+    art: { x:0, y:0, scale:1, pad:0 }
   };
 
-  // ---------- DOM ----------
-  const el = {
-    csvFile: document.getElementById('csvFile'),
-    imgFolder: document.getElementById('imgFolder'),
-    cardSelect: document.getElementById('cardSelect'),
-    faction: document.getElementById('faction'),
-    name: document.getElementById('name'),
-    type: document.getElementById('type'),
-    atk: document.getElementById('atk'),
-    hp: document.getElementById('hp'),
-    mov: document.getElementById('mov'),
-    cost: document.getElementById('cost'),
-    rules: document.getElementById('rules'),
-    artFile: document.getElementById('artFile'),
-    artX: document.getElementById('artX'),
-    artY: document.getElementById('artY'),
-    artW: document.getElementById('artW'),
-    artH: document.getElementById('artH'),
-    btnSaveCard: document.getElementById('btnSaveCard'),
-    btnResetArt: document.getElementById('btnResetArt'),
-    btnToggleHandle: document.getElementById('btnToggleHandle'),
-    status: document.getElementById('status'),
+  const q = sel => document.querySelector(sel);
+  const stage = q('#stage');
+  const art = q('#art');
+  const artBox = q('#artBox');
+  const artHandle = q('#artHandle');
+  const rulesEdit = q('#rulesEdit');
 
-    btnAddToDeck: document.getElementById('btnAddToDeck'),
-    btnClearDeck: document.getElementById('btnClearDeck'),
-    deckList: document.getElementById('deckList'),
+  const fldName = q('#fldName');
+  const fldType = q('#fldType');
+  const fldRules = q('#fldRules');
+  const fldFlavor = q('#fldFlavor');
+  const fldFaction = q('#fldFaction');
+  const bATK = q('#bATK');
+  const bHP  = q('#bHP');
+  const bMOV = q('#bMOV');
 
-    sheetName: document.getElementById('sheetName'),
-    sheetLayout: document.getElementById('sheetLayout'),
-    btnPreview: document.getElementById('btnPreview'),
-    btnDownload: document.getElementById('btnDownload'),
+  const artX = q('#artX');
+  const artY = q('#artY');
+  const artScale = q('#artScale');
+  const artPad = q('#artPad');
 
-    bATK: document.getElementById('bATK'),
-    bHP: document.getElementById('bHP'),
-    bMOV: document.getElementById('bMOV'),
-    bFaction: document.getElementById('bFaction'),
+  const diag = q('#diag');
 
-    cardCanvas: document.getElementById('cardCanvas'),
-    sheetCanvas: document.getElementById('sheetCanvas'),
+  function setDiag(msg){ diag.textContent = msg; }
 
-    handle: document.getElementById('cardHandle'),
-
-    btnExportLayout: document.getElementById('btnExportLayout'),
-    btnImportLayout: document.getElementById('btnImportLayout'),
-    layoutFile: document.getElementById('layoutFile'),
-
-    // modal
-    modal: document.getElementById('previewModal'),
-    modalClose: document.getElementById('modalClose'),
-    modalDownload: document.getElementById('modalDownload'),
-    modalSheetCanvas: document.getElementById('modalSheetCanvas'),
-    modalSheetName: document.getElementById('modalSheetName'),
-  };
-
-  const ctx = el.cardCanvas.getContext('2d');
-  const sctx = el.sheetCanvas.getContext('2d');
-  const mctx = el.modalSheetCanvas.getContext('2d');
-
-  // ---------- Utilities ----------
-  const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
-  const toLower = s => (s||'').trim().toLowerCase();
-  const parseCSV = async(file)=>{
-    const text = await file.text();
-    // Very lightweight CSV parse (assumes well-formed)
+  // ------- CSV Loading (tiny parser) -------
+  function parseCSV(text){
     const lines = text.replace(/\r/g,'').split('\n').filter(Boolean);
-    const headers = lines.shift().split(',').map(h=>h.trim());
-    return lines.map(line=>{
+    const headers = lines.shift().split(',').map(s=>s.trim());
+    return lines.map(line => {
       const cells = [];
-      let cur="", inQ=false;
-      for(let i=0;i<line.length;i++){
+      let cur='', inQ=false;
+      for (let i=0;i<line.length;i++){
         const ch=line[i];
         if(ch==='"'){
-          if(inQ && line[i+1]==='"'){cur+='"';i++;}
+          if(inQ && line[i+1]==='"'){ cur+='"'; i++; }
           else inQ=!inQ;
-        }else if(ch===',' && !inQ){cells.push(cur);cur=""}
+        } else if(ch===',' && !inQ){ cells.push(cur); cur=''; }
         else cur+=ch;
       }
       cells.push(cur);
-      const obj={};
-      headers.forEach((h,idx)=>obj[h]=cells[idx]??"");
-      return obj;
+      const row={}; headers.forEach((h,idx)=> row[h]= (cells[idx]??'').trim());
+      return row;
     });
-  };
-  const loadImageBitmap = (file)=> new Promise((res,rej)=>{
+  }
+
+  q('#btn-load-csv').addEventListener('click',()=> q('#csvFile').click());
+  q('#csvFile').addEventListener('change', ev=>{
+    const f = ev.target.files[0]; if(!f) return;
     const fr = new FileReader();
-    fr.onload = () => {
-      createImageBitmap(new Blob([fr.result]))
-        .then(res).catch(rej);
-    };
-    fr.onerror = rej;
-    fr.readAsArrayBuffer(file);
+    fr.onload = () => { state.csvRows = parseCSV(fr.result); state.rowIndex=0; setDiag(`Loaded ${state.csvRows.length} rows.`); applyRow(); };
+    fr.readAsText(f);
   });
 
-  function downloadBlobPNG(canvas, name){
-    canvas.toBlob(b=>{
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(b);
-      a.download=(name||'sheet')+'.png';
-      a.click();
-      URL.revokeObjectURL(a.href);
-    }, 'image/png');
-  }
-
-  function setStatus(msg, type=''){
-    el.status.textContent = msg;
-    el.status.style.color = type==='ok'? 'var(--ok)': type==='bad'? 'var(--bad)': 'var(--muted)';
-  }
-
-  // ---------- CSV + Images ----------
-  el.csvFile.addEventListener('change', async e=>{
-    try{
-      const file = e.target.files[0];
-      if(!file){return}
-      setStatus('Parsing CSV…');
-      const rows = await parseCSV(file);
-      // Expecting columns at least: name, faction, type, atk, hp, mov, cost, rules (case-insensitive ok)
-      state.cards = rows.map(r=>({
-        name: r.name||r.Name||'',
-        faction: r.faction||r.Faction||'',
-        type: r.type||r.Type||'',
-        atk: +((r.atk||r.ATK||0)),
-        hp: +((r.hp||r.HP||0)),
-        mov: +((r.mov||r.MOV||r.movement||0)),
-        cost: +((r.cost||r.Cost||0)),
-        rules: r.rules||r.Rules||'',
-        // layout overrides
-        artX: +(r.artX||''), artY: +(r.artY||''), artW: +(r.artW||''), artH: +(r.artH||''),
-        // runtime
-        _img: null, // ImageBitmap override if user sets file
-      }));
-      hydrateUIFromCards();
-      setStatus(`Loaded ${state.cards.length} cards from CSV.`, 'ok');
-    }catch(err){
-      console.error(err);
-      setStatus('Failed to parse CSV.', 'bad');
+  // ------- Mass Images -------
+  q('#imgFiles').addEventListener('change', ev=>{
+    const files = Array.from(ev.target.files||[]);
+    let added=0;
+    for (const f of files){
+      const base = f.name.replace(/\.[^.]+$/,'').toLowerCase();
+      const url = URL.createObjectURL(f);
+      state.images.set(base, url);
+      added++;
     }
+    setDiag(`Imported ${added} images. Matching by Art or Name.`);
+    applyRow();
   });
 
-  el.imgFolder.addEventListener('change', async e=>{
-    const files = [...e.target.files];
-    if(!files.length){ setStatus('No files selected for image import.', 'warn'); return }
-    setStatus('Importing images…');
-    const lowerMap = new Map();
-    for(const f of files){
-      const base = f.name.replace(/\.[^.]+$/i, '');
-      lowerMap.set(toLower(base), f);
-    }
-    let ok=0, miss=0;
-    for(const c of state.cards){
-      const match = lowerMap.get(toLower(c.name));
-      if(match){
-        try{ state.imagesByName.set(toLower(c.name), await loadImageBitmap(match)); ok++; }
-        catch{ miss++; }
-      } else miss++;
-    }
-    setStatus(`Images matched: ${ok}; missing: ${miss}.`, ok? 'ok':'warn');
-    drawCard();
-  });
+  // ------- Apply CSV row to canvas -------
+  function applyRow(){
+    const r = state.csvRows[state.rowIndex] || null;
+    if(!r){ setDiag('No CSV loaded; using manual fields.'); renderFields(); renderFaction(); fitArtBox(); return; }
 
-  // ---------- UI binding ----------
-  function hydrateUIFromCards(){
-    el.cardSelect.innerHTML = '';
-    state.cards.forEach((c,i)=>{
-      const opt=document.createElement('option');
-      opt.value = i; opt.textContent = c.name || `(Card ${i+1})`;
-      el.cardSelect.appendChild(opt);
-    });
-    if(state.cards.length===0){ setStatus('CSV loaded but 0 cards detected. Check column headers like name,faction,type,atk,hp,mov,cost,rules.', 'warn'); }
-    state.current = 0;
-    syncEditor();
-    drawCard();
-    renderDeck();
-  })`;
-      el.cardSelect.appendChild(opt);
-    });
-    state.current = 0;
-    syncEditor();
-    drawCard();
-    renderDeck();
-  }
+    // Fields (fallback to existing DOM values if empty)
+    fldName.value = r.Name || r.CardName || r.card_name || fldName.value;
+    fldType.value = r.Type || r.CardType || fldType.value;
+    fldRules.value = r.Rules || r.RulesText || r.rules || fldRules.value;
+    fldFlavor.value = r.Flavor || r.FlavorText || fldFlavor.value;
 
-  function syncEditor(){
-    const c = state.cards[state.current]||{};
-    el.cardSelect.value = state.current;
-    el.faction.value = c.faction||'Flame';
-    el.name.value = c.name||'';
-    el.type.value = c.type||'';
-    el.atk.value = c.atk||0;
-    el.hp.value = c.hp||0;
-    el.mov.value = c.mov||0;
-    el.cost.value = c.cost||0;
-    el.rules.value = c.rules||'';
-    // art box
-    const ax = Number.isFinite(c.artX) && c.artX>0 ? c.artX : state.layout.artX;
-    const ay = Number.isFinite(c.artY) && c.artY>0 ? c.artY : state.layout.artY;
-    const aw = Number.isFinite(c.artW) && c.artW>0 ? c.artW : state.layout.artW;
-    const ah = Number.isFinite(c.artH) && c.artH>0 ? c.artH : state.layout.artH;
-    el.artX.value = ax; el.artY.value = ay; el.artW.value = aw; el.artH.value = ah;
-    // badges
-    el.bATK.textContent = (el.bATK.textContent = c.atk ?? '-')
-    document.getElementById('bATK').textContent = c.atk ?? '-';
-    document.getElementById('bHP').textContent = c.hp ?? '-';
-    document.getElementById('bMOV').textContent = c.mov ?? '-';
-    document.getElementById('bFaction').textContent = `Faction: ${c.faction||'-'}`;
-  }
+    const faction = (r.Faction||'ash').toLowerCase();
+    fldFaction.value = ['flame','blood','ash'].includes(faction)? faction : 'ash';
 
-  el.cardSelect.addEventListener('change', e=>{
-    state.current = +e.target.value;
-    syncEditor();
-    drawCard();
-  });
+    q('#fldATK').value = r.ATK || r.Attack || q('#fldATK').value;
+    q('#fldHP').value  = r.HP || r.Health || q('#fldHP').value;
+    q('#fldMOV').value = r.MOV || r.Move || r.Movement || q('#fldMOV').value;
 
-  el.btnSaveCard.addEventListener('click', ()=>{
-    const c = state.cards[state.current];
-    if(!c) return;
-    c.faction = el.faction.value.trim();
-    c.name = el.name.value.trim();
-    c.type = el.type.value.trim();
-    c.atk = +el.atk.value|0; c.hp = +el.hp.value|0; c.mov= +el.mov.value|0; c.cost= +el.cost.value|0;
-    c.rules = el.rules.value;
-    c.artX = +el.artX.value|0; c.artY = +el.artY.value|0; c.artW = +el.artW.value|0; c.artH = +el.artH.value|0;
-    // if user added override
-    if(el.artFile.files[0]){
-      loadImageBitmap(el.artFile.files[0]).then(img=>{ c._img = img; drawCard(); });
-    }
-    // update dropdown name
-    el.cardSelect.options[state.current].textContent = c.name || `(Card ${state.current+1})`;
-    setStatus('Saved.', 'ok');
-    drawCard();
-  });
+    renderFields();
+    renderFaction();
 
-  el.btnResetArt.addEventListener('click', ()=>{
-    const c = state.cards[state.current]; if(!c) return;
-    c.artX = state.layout.artX; c.artY = state.layout.artY; c.artW = state.layout.artW; c.artH = state.layout.artH;
-    el.artX.value=c.artX; el.artY.value=c.artY; el.artW.value=c.artW; el.artH.value=c.artH;
-    handle.hidden=false;
-    drawCard();
-  });
-  el.btnToggleHandle.addEventListener('click', ()=>{
-    handle.hidden = !handle.hidden;
-  });
-
-  // Deck actions
-  el.btnAddToDeck.addEventListener('click', ()=>{
-    if(state.cards.length===0) return;
-    state.deck.push(state.current);
-    renderDeck();
-  });
-  el.btnClearDeck.addEventListener('click', ()=>{ state.deck=[]; renderDeck(); });
-
-  function renderDeck(){
-    el.deckList.innerHTML='';
-    state.deck.forEach((idx, i)=>{
-      const c = state.cards[idx];
-      const row = document.createElement('div');
-      row.className='item';
-      row.innerHTML = `<div>${i+1}. ${c?.name||'-'}</div>`;
-      const btn = document.createElement('button');
-      btn.textContent='—';
-      btn.title='Remove';
-      btn.addEventListener('click',()=>{state.deck.splice(i,1); renderDeck();});
-      row.appendChild(btn);
-      el.deckList.appendChild(row);
-    });
-  }
-
-  // ---------- Drawing (Card) ----------
-  function drawCard(){
-    const c = state.cards[state.current] || {};
-    ctx.clearRect(0,0,el.cardCanvas.width, el.cardCanvas.height);
-
-    ctx.fillStyle = '#0f0f12';
-    ctx.fillRect(0,0,750,1050);
-
-    const factionColor = c?.faction==='Flame'? '#b8571b' : c?.faction==='Blood'? '#8a1d1d' : '#2b2b30';
-    ctx.fillStyle=factionColor; ctx.fillRect(0,0,750,90);
-
-    ctx.fillStyle='rgba(0,0,0,.45)';
-    ctx.beginPath(); ctx.arc(70,70,46,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle='#fff'; ctx.font='700 22px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText((c?.name||'Untitled').slice(0,12), 70, 70);
-
-    ctx.fillStyle='rgba(255,255,255,.06)';
-    ctx.fillRect(40, 580, 670, 130);
-
-    const ax = +(c?.artX ?? state.layout.artX), ay = +(c?.artY ?? state.layout.artY), aw = +(c?.artW ?? state.layout.artW), ah = +(c?.artH ?? state.layout.artH);
-    ctx.fillStyle='#151517'; ctx.fillRect(ax, ay, aw, ah);
-
-    let img = c?._img || state.imagesByName.get(toLower(c?.name||''));
-    try{
-      if(img){
-        const ir = img.width/img.height; const br = aw/ah;
-        let dw=aw, dh=ah;
-        if(ir>br){ dh=ah; dw=dh*ir; } else { dw=aw; dh=dw/ir; }
-        const dx = ax + (aw-dw)/2; const dy = ay + (ah-dh)/2;
-        ctx.drawImage(img, dx, dy, dw, dh);
-      } else {
-        ctx.strokeStyle='rgba(255,255,255,.15)';
-        ctx.setLineDash([6,6]);
-        ctx.strokeRect(ax, ay, aw, ah);
-        ctx.setLineDash([]);
-        ctx.fillStyle='rgba(255,255,255,.35)';
-        ctx.font='600 16px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.fillText('Art Placeholder', ax+aw/2, ay+ah/2);
-      }
-    }catch(err){ setStatus('Render error: '+err.message, 'bad'); }
-
-    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
-    ctx.font='700 24px system-ui';
-    ctx.fillStyle='#eae7e4';
-    ctx.fillText('ATK: '+(c?.atk??'-'), 60, 625);
-    ctx.fillText('HP: '+(c?.hp??'-'), 300, 625);
-    ctx.fillText('MOV: '+(c?.mov??'-'), 540, 625);
-
-    ctx.font='600 18px system-ui';
-    ctx.fillStyle='#a8a3a0';
-    ctx.fillText(`${c?.type||'-'}  •  Cost: ${c?.cost??0} Fragments`, 60, 665);
-
-    ctx.fillStyle='rgba(255,255,255,.06)';
-    ctx.fillRect(40, 730, 670, 260);
-    ctx.fillStyle='#eae7e4';
-    ctx.font='500 18px system-ui';
-    ctx.textAlign='left'; ctx.textBaseline='top';
-    wrapText(ctx, (c?.rules||'Rules text…'), 60, 750, 630, 24);
-
-    document.getElementById('bATK').textContent = c?.atk ?? '-';
-    document.getElementById('bHP').textContent = c?.hp ?? '-';
-    document.getElementById('bMOV').textContent = c?.mov ?? '-';
-    document.getElementById('bFaction').textContent = `Faction: ${c?.faction||'-'}`;
-
-    positionHandle(ax, ay, aw, ah);
-  }
-
-  function wrapText(ctx, text, x, y, maxW, lh){
-    const words = String(text).split(/\s+/);
-    let line = '', yy=y;
-    for(const w of words){
-      const t = line? line+" "+w : w;
-      if(ctx.measureText(t).width > maxW){
-        ctx.fillText(line, x, yy); yy+=lh; line=w;
-      }else line=t;
-    }
-    if(line) ctx.fillText(line, x, yy);
-  }
-
-  // ---------- Drag/Resize Handle ----------
-  const handle = el.handle; let dragTarget=null; let start={};
-  function positionHandle(x,y,w,h){
-    // The handle is absolutely positioned INSIDE canvasWrap which has 10px padding
-    const pad = 10;
-    handle.hidden=false;
-    handle.style.left = (pad + x) + 'px';
-    handle.style.top  = (pad + y) + 'px';
-    handle.style.width = w + 'px';
-    handle.style.height = h + 'px';
-  }
-
-  // event helpers on handle
-  function onGrabDown(e){
-    e.preventDefault();
-    dragTarget='move';
-    const ex = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
-    const ey = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
-    start={ mx:ex, my:ey, x:+el.artX.value, y:+el.artY.value, w:+el.artW.value, h:+el.artH.value };
-    window.addEventListener('mousemove', onGrabMove);
-    window.addEventListener('mouseup', onGrabUp);
-    window.addEventListener('pointermove', onGrabMove);
-    window.addEventListener('pointerup', onGrabUp);
-    window.addEventListener('touchmove', onGrabMove, {passive:false});
-    window.addEventListener('touchend', onGrabUp);
-  };
-    window.addEventListener('mousemove', onGrabMove);
-    window.addEventListener('mouseup', onGrabUp);
-  }
-  function onCornerDown(kind){
-    return function(e){
-      e.preventDefault(); dragTarget=kind;
-      const ex = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
-      const ey = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
-      start={ mx:ex, my:ey, x:+el.artX.value, y:+el.artY.value, w:+el.artW.value, h:+el.artH.value };
-      window.addEventListener('mousemove', onGrabMove);
-      window.addEventListener('mouseup', onGrabUp);
-      window.addEventListener('pointermove', onGrabMove);
-      window.addEventListener('pointerup', onGrabUp);
-      window.addEventListener('touchmove', onGrabMove, {passive:false});
-      window.addEventListener('touchend', onGrabUp);
-    }
-  };
-      window.addEventListener('mousemove', onGrabMove);
-      window.addEventListener('mouseup', onGrabUp);
-    }
-  }
-  function onGrabMove(e){
-    const cx = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
-    const cy = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
-    const dx=cx-start.mx, dy=cy-start.my;
-    const minSize = 24; // prevent flipping/too-small
-    if(dragTarget==='move'){
-      el.artX.value = start.x + dx;
-      el.artY.value = start.y + dy;
-    } else if(dragTarget==='tl'){
-      let w = start.w - dx, h = start.h - dy;
-      if(w < minSize) w = minSize; if(h < minSize) h = minSize;
-      el.artX.value = start.x + (start.w - w);
-      el.artY.value = start.y + (start.h - h);
-      el.artW.value = w; el.artH.value = h;
-    } else if(dragTarget==='tr'){
-      let w = start.w + dx, h = start.h - dy;
-      if(w < minSize) w = minSize; if(h < minSize) h = minSize;
-      el.artY.value = start.y + (start.h - h);
-      el.artW.value = w; el.artH.value = h;
-    } else if(dragTarget==='bl'){
-      let w = start.w - dx, h = start.h + dy;
-      if(w < minSize) w = minSize; if(h < minSize) h = minSize;
-      el.artX.value = start.x + (start.w - w);
-      el.artW.value = w; el.artH.value = h;
-    } else if(dragTarget==='br'){
-      let w = start.w + dx, h = start.h + dy;
-      if(w < minSize) w = minSize; if(h < minSize) h = minSize;
-      el.artW.value = w; el.artH.value = h;
-    }
-    drawCard();
-  } else if(dragTarget==='tl'){
-      el.artX.value = start.x + dx; el.artY.value = start.y + dy;
-      el.artW.value = start.w - dx; el.artH.value = start.h - dy;
-    } else if(dragTarget==='tr'){
-      el.artY.value = start.y + dy; el.artW.value = start.w + dx; el.artH.value = start.h - dy;
-    } else if(dragTarget==='bl'){
-      el.artX.value = start.x + dx; el.artW.value = start.w - dx; el.artH.value = start.h + dy;
-    } else if(dragTarget==='br'){
-      el.artW.value = start.w + dx; el.artH.value = start.h + dy;
-    }
-    drawCard();
-  }
-  function onGrabUp(){
-    dragTarget=null;
-    window.removeEventListener('mousemove', onGrabMove);
-    window.removeEventListener('mouseup', onGrabUp);
-    window.removeEventListener('pointermove', onGrabMove);
-    window.removeEventListener('pointerup', onGrabUp);
-    window.removeEventListener('touchmove', onGrabMove);
-    window.removeEventListener('touchend', onGrabUp);
-    const c=state.cards[state.current]; if(!c) return;
-    c.artX=+el.artX.value; c.artY=+el.artY.value; c.artW=+el.artW.value; c.artH=+el.artH.value;
-  }
-
-  handle.querySelector('.grab').addEventListener('mousedown', onGrabDown);
-  handle.querySelector('.tl').addEventListener('mousedown', onCornerDown('tl'));
-  handle.querySelector('.tr').addEventListener('mousedown', onCornerDown('tr'));
-  handle.querySelector('.bl').addEventListener('mousedown', onCornerDown('bl'));
-  handle.querySelector('.br').addEventListener('mousedown', onCornerDown('br'));
-  // Pointer/touch support for broader compatibility
-  handle.querySelector('.grab').addEventListener('pointerdown', onGrabDown);
-  handle.querySelector('.tl').addEventListener('pointerdown', onCornerDown('tl'));
-  handle.querySelector('.tr').addEventListener('pointerdown', onCornerDown('tr'));
-  handle.querySelector('.bl').addEventListener('pointerdown', onCornerDown('bl'));
-  handle.querySelector('.br').addEventListener('pointerdown', onCornerDown('br'));
-
-  // ---------- Save/Load Layout ----------
-  el.btnExportLayout.addEventListener('click', ()=>{
-    const data = {
-      layoutDefaults: state.layout,
-      cards: state.cards.map(c=>({name:c.name, artX:c.artX, artY:c.artY, artW:c.artW, artH:c.artH}))
-    };
-    const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v6_1.json'; a.click(); URL.revokeObjectURL(a.href);
-  });
-  el.btnImportLayout.addEventListener('click', ()=> el.layoutFile.click());
-  el.layoutFile.addEventListener('change', async e=>{
-    const f=e.target.files[0]; if(!f) return;
-    try{
-      const obj=JSON.parse(await f.text());
-      if(obj.layoutDefaults) state.layout = obj.layoutDefaults;
-      if(Array.isArray(obj.cards)){
-        for(const o of obj.cards){
-          const idx = state.cards.findIndex(k=>toLower(k.name)===toLower(o.name));
-          if(idx>-1){ Object.assign(state.cards[idx], {artX:o.artX, artY:o.artY, artW:o.artW, artH:o.artH}); }
-        }
-      }
-      setStatus('Layout imported.', 'ok');
-      syncEditor(); drawCard();
-    }catch(err){ setStatus('Layout import failed.', 'bad'); }
-  });
-
-  // ---------- Sheet Generation (10×7 default) ----------
-  function drawCardTo(ctx, x, y, targetW, targetH){
-    // Draw the current card onto a sheet cell. We re-run draw using same logic but scaled.
-    // For performance, we render onto an offscreen canvas at 750×1050, then drawImage scaled.
-    const off = document.createElement('canvas'); off.width=750; off.height=1050; const octx = off.getContext('2d');
-
-    const c = state.cards[state.current];
-    // reuse drawCard bits (duplicated for independence)
-    octx.fillStyle='#0f0f12'; octx.fillRect(0,0,750,1050);
-    const factionColor = c?.faction==='Flame'? '#b8571b' : c?.faction==='Blood'? '#8a1d1d' : '#2b2b30';
-    octx.fillStyle=factionColor; octx.fillRect(0,0,750,90);
-    octx.fillStyle='rgba(0,0,0,.45)'; octx.beginPath(); octx.arc(70,70,46,0,Math.PI*2); octx.fill();
-    octx.fillStyle='#fff'; octx.font='700 22px system-ui'; octx.textAlign='center'; octx.textBaseline='middle'; octx.fillText((c?.name||'Untitled').slice(0,12), 70, 70);
-    octx.fillStyle='rgba(255,255,255,.06)'; octx.fillRect(40, 580, 670, 130);
-
-    const ax=c.artX??state.layout.artX, ay=c.artY??state.layout.artY, aw=c.artW??state.layout.artW, ah=c.artH??state.layout.artH;
-    octx.fillStyle='#151517'; octx.fillRect(ax,ay,aw,ah);
-    const img = c?._img || state.imagesByName.get(toLower(c?.name||''));
-    if(img){
-      const ir=img.width/img.height, br=aw/ah; let dw=aw, dh=ah; if(ir>br){ dh=ah; dw=dh*ir; } else { dw=aw; dh=dw/ir; }
-      const dx=ax+(aw-dw)/2, dy=ay+(ah-dh)/2; octx.drawImage(img, dx, dy, dw, dh);
-    } else { octx.strokeStyle='rgba(255,255,255,.15)'; octx.setLineDash([6,6]); octx.strokeRect(ax,ay,aw,ah); octx.setLineDash([]); octx.fillStyle='rgba(255,255,255,.35)'; octx.font='600 16px system-ui'; octx.textAlign='center'; octx.textBaseline='middle'; octx.fillText('Art Placeholder', ax+aw/2, ay+ah/2); }
-
-    octx.textAlign='left'; octx.textBaseline='alphabetic'; octx.font='700 24px system-ui'; octx.fillStyle='#eae7e4';
-    octx.fillText('ATK: '+(c?.atk??'-'), 60, 625);
-    octx.fillText('HP: '+(c?.hp??'-'), 300, 625);
-    octx.fillText('MOV: '+(c?.mov??'-'), 540, 625);
-    octx.font='600 18px system-ui'; octx.fillStyle='#a8a3a0'; octx.fillText(`${c?.type||'-'}  •  Cost: ${c?.cost??0} Fragments`, 60, 665);
-    octx.fillStyle='rgba(255,255,255,.06)'; octx.fillRect(40, 730, 670, 260);
-    octx.fillStyle='#eae7e4'; octx.font='500 18px system-ui'; octx.textAlign='left'; octx.textBaseline='top';
-    wrapText(octx, (c?.rules||'Rules text…'), 60, 750, 630, 24);
-
-    ctx.drawImage(off, x, y, targetW, targetH);
-  }
-
-  function buildSheetTo(ctx, layout){
-    // layout: {cols, rows, cellW, cellH, padX, padY, margin}
-    ctx.save(); ctx.fillStyle='#101014'; ctx.fillRect(0,0,ctx.canvas.width, ctx.canvas.height); ctx.restore();
-    const total = state.deck.length || state.cards.length;
-    const source = state.deck.length? state.deck.map(i=>i) : state.cards.map((_,i)=>i);
-
-    // Render in order
-    let i=0; for(let r=0;r<layout.rows;r++){
-      for(let c=0;c<layout.cols;c++){
-        const idx = source[i % source.length];
-        const prev = state.current; state.current = idx; // temporarily switch
-        const x = layout.margin + c*(layout.cellW + layout.padX);
-        const y = layout.margin + r*(layout.cellH + layout.padY);
-        drawCardTo(ctx, x, y, layout.cellW, layout.cellH);
-        state.current = prev; i++;
-      }
-    }
-  }
-
-  function getLayoutPreset(name, targetCtx){
-    if(name==='10x7'){
-      // 7000×4900, 10 columns, 7 rows, each cell 700×700*1.5 (we keep card aspect 750x1050)
-      // We'll size cell to 650×910 with small gaps so sheet fits.
-      const W = targetCtx.canvas.width, H = targetCtx.canvas.height;
-      const cols=10, rows=7; const margin=40; const padX=20, padY=20;
-      const cellW = Math.floor((W - margin*2 - padX*(cols-1)) / cols); // ≈ 680
-      const cellH = Math.floor(cellW * (1050/750)); // keep aspect 1.4
-      return {cols, rows, cellW, cellH, padX, padY, margin};
-    }
-    // fallback 5x3 on smaller preview canvas (sheetCanvas 1400×980)
-    const W = targetCtx.canvas.width, H = targetCtx.canvas.height;
-    const cols=5, rows=3; const margin=18; const padX=10, padY=10;
-    const cellW = Math.floor((W - margin*2 - padX*(cols-1)) / cols);
-    const cellH = Math.floor(cellW * (1050/750));
-    return {cols, rows, cellW, cellH, padX, padY, margin};
-  }
-
-  // Sidebar preview canvas
-  function refreshSheetPreview(){
-    const preset = getLayoutPreset(el.sheetLayout.value, sctx);
-    buildSheetTo(sctx, preset);
-  }
-
-  el.btnPreview.addEventListener('click', ()=>{
-    // build to modal full-res
-    const preset = getLayoutPreset('10x7', mctx);
-    buildSheetTo(mctx, preset);
-    el.modalSheetName.value = el.sheetName.value || 'SoA_Sheet_v6_1';
-    el.modal.classList.add('show'); el.modal.setAttribute('aria-hidden','false');
-  });
-  el.modalClose.addEventListener('click', ()=>{ el.modal.classList.remove('show'); el.modal.setAttribute('aria-hidden','true'); });
-  el.modal.addEventListener('click', (e)=>{ if(e.target===el.modal){ el.modal.classList.remove('show'); el.modal.setAttribute('aria-hidden','true'); }});
-  el.modalDownload.addEventListener('click', ()=>{ downloadBlobPNG(el.modalSheetCanvas, el.modalSheetName.value||'SoA_Sheet_v6_1'); });
-  el.btnDownload.addEventListener('click', ()=>{
-    // download whatever the sidebar layout is targeting; for TTS, recommend modal for full res
-    if(el.sheetLayout.value==='10x7'){
-      const preset = getLayoutPreset('10x7', mctx);
-      buildSheetTo(mctx, preset);
-      downloadBlobPNG(el.modalSheetCanvas, el.sheetName.value||'SoA_Sheet_v6_1');
+    // Art match: prefer Art column; else Name
+    const artKeyRaw = (r.Art && r.Art.trim()) ? r.Art : (r.Name || r.CardName || '');
+    const artKey = String(artKeyRaw).replace(/\.[^.]+$/,'').toLowerCase();
+    if (artKey && state.images.has(artKey)){
+      art.src = state.images.get(artKey);
     } else {
-      refreshSheetPreview();
-      downloadBlobPNG(el.sheetCanvas, el.sheetName.value||'SoA_Sheet_v6_1_preview');
+      art.removeAttribute('src');
     }
+    fitArtBox();
+  }
+
+  function renderFields(){
+    q('#name').textContent = fldName.value || 'Name';
+    q('#type').textContent = fldType.value || 'Type — Subtype';
+    q('#rules').textContent = fldRules.value || 'Rules text...';
+    q('#flavor').textContent = fldFlavor.value || '“Flavor text...”';
+
+    bATK.textContent = q('#fldATK').value;
+    bHP.textContent  = q('#fldHP').value;
+    bMOV.textContent = q('#fldMOV').value;
+  }
+
+  function renderFaction(){
+    const fb = q('#factionBorder');
+    fb.className = 'faction-border ' + fldFaction.value;
+  }
+
+  [fldName,fldType,fldRules,fldFlavor,q('#fldATK'),q('#fldHP'),q('#fldMOV')].forEach(el=> el.addEventListener('input', renderFields));
+  fldFaction.addEventListener('change', renderFaction);
+
+  // ------- Art transforms -------
+  function applyArt(){
+    const pad = state.art.pad;
+    art.style.left = `calc(50% + ${state.art.x}px)`;
+    art.style.top =  `calc(50% + ${state.art.y}px)`;
+    art.style.transform = `translate(-50%, -50%) scale(${state.art.scale})`;
+    artBox.style.inset = `${80+pad}px ${50+pad}px ${210+pad}px ${50+pad}px`;
+  }
+
+  function fitArtBox(){
+    // Reset to frame with slight scale fit
+    state.art.x=0; state.art.y=0; state.art.scale=1; state.art.pad=0;
+    artX.value=0; artY.value=0; artScale.value=100; artPad.value=0; applyArt();
+  }
+
+  artX.addEventListener('input', e=>{ state.art.x = +e.target.value; applyArt(); });
+  artY.addEventListener('input', e=>{ state.art.y = +e.target.value; applyArt(); });
+  artScale.addEventListener('input', e=>{ state.art.scale = (+e.target.value)/100; applyArt(); });
+  artPad.addEventListener('input', e=>{ state.art.pad = +e.target.value; applyArt(); });
+  q('#fitArt').addEventListener('click', fitArtBox);
+
+  // Drag handle for art (big center box)
+  let dragging=false, startX=0, startY=0, sX=0, sY=0;
+  artHandle.addEventListener('mousedown', e=>{
+    dragging=true; startX=e.clientX; startY=e.clientY; sX=state.art.x; sY=state.art.y; e.preventDefault();
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!dragging) return; const dx=e.clientX-startX, dy=e.clientY-startY; state.art.x = sX+dx; state.art.y = sY+dy; artX.value=state.art.x; artY.value=state.art.y; applyArt();
+  });
+  window.addEventListener('mouseup', ()=> dragging=false);
+
+  // ------- Layout editing -------
+  const elements = { name:q('#name'), type:q('#type'), rules:q('#rules'), flavor:q('#flavor') };
+  const selElement = q('#selElement');
+  const posX = q('#posX'), posY=q('#posY'), posW=q('#posW'), posH=q('#posH');
+
+  function syncInspector(){
+    const el = elements[selElement.value];
+    const r = el.getBoundingClientRect();
+    const s = stage.getBoundingClientRect();
+    posX.value = Math.round(r.left - s.left);
+    posY.value = Math.round(r.top - s.top);
+    posW.value = Math.round(r.width);
+    posH.value = Math.round(r.height);
+
+    // Show/hide big rules edit rect
+    if(selElement.value==='rules'){
+      rulesEdit.style.display='block';
+      rulesEdit.style.left = (r.left - s.left - 2) + 'px';
+      rulesEdit.style.top  = (r.top - s.top - 2) + 'px';
+      rulesEdit.style.width = (r.width + 4) + 'px';
+      rulesEdit.style.height= (r.height + 4) + 'px';
+    } else rulesEdit.style.display='none';
+  }
+
+  selElement.addEventListener('change', syncInspector);
+  q('#applyLayout').addEventListener('click', ()=>{
+    const el = elements[selElement.value];
+    el.style.left = posX.value + 'px';
+    el.style.top  = posY.value + 'px';
+    el.style.width= posW.value + 'px';
+    el.style.height= posH.value + 'px';
+    syncInspector();
+    setDiag('Applied layout to '+selElement.value);
   });
 
-  // ---------- Init ----------
-  refreshSheetPreview();
-  setStatus('Ready. Load CSV to begin.');
-})();
-</script>
+  q('#toggleGuides').addEventListener('click', ()=>{
+    state.guides = !state.guides; stage.style.outline = state.guides? '1px dashed #333' : 'none';
+    setDiag('Guides '+(state.guides?'on':'off'));
+  });
+
+  // ------- Save/Load Layout (localStorage & JSON) -------
+  function captureLayout(){
+    return {
+      name: pickCSS(elements.name),
+      type: pickCSS(elements.type),
+      rules: pickCSS(elements.rules),
+      flavor: pickCSS(elements.flavor),
+      art: {...state.art}
+    };
+  }
+  function pickCSS(el){
+    return {left:el.style.left||'24px', top:el.style.top||'18px', width:el.style.width||'696px', height:el.style.height||el.offsetHeight+'px'}
+  }
+  function applyLayout(layout){
+    if(!layout) return;
+    for (const k of ['name','type','rules','flavor']){
+      const L = layout[k]; const el = elements[k]; if(!L||!el) continue;
+      el.style.left=L.left; el.style.top=L.top; el.style.width=L.width; el.style.height=L.height;
+    }
+    state.art = layout.art || state.art; artX.value=state.art.x; artY.value=state.art.y; artScale.value=state.art.scale*100; artPad.value=state.art.pad; applyArt();
+    syncInspector();
+  }
+
+  q('#btn-save-layout').addEventListener('click', ()=>{
+    const L=captureLayout(); localStorage.setItem('soa_layout_v61', JSON.stringify(L)); setDiag('Layout saved to browser storage.');
+  });
+  q('#btn-load-layout').addEventListener('click', ()=>{
+    const raw = localStorage.getItem('soa_layout_v61'); if(!raw){ setDiag('No saved layout.'); return; }
+    applyLayout(JSON.parse(raw)); setDiag('Layout loaded.');
+  });
+  q('#btn-reset-layout').addEventListener('click', ()=>{ localStorage.removeItem('soa_layout_v61'); location.reload(); });
+
+  // Export / Import JSON
+  q('#btn-export-json').addEventListener('click', ()=>{
+    const blob = new Blob([JSON.stringify(captureLayout(), null, 2)], {type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v61.json'; a.click();
+  });
+  q('#importJson').addEventListener('change', ev=>{
+    const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ try{ applyLayout(JSON.parse(fr.result)); setDiag('Imported layout JSON.'); }catch(e){ setDiag('Invalid JSON.'); } }; fr.readAsText(f);
+  });
+
+  // Prev/Next
+  q('#prev').addEventListener('click', ()=>{ if(state.rowIndex>0){ state.rowIndex--; applyRow(); }});
+  q('#next').addEventListener('click', ()=>{ if(state.rowIndex < state.csvRows.length-1){ state.rowIndex++; applyRow(); }});
+
+  // Export PNG
+  q('#btn-export-png').addEventListener('click', async ()=>{
+    setDiag('Rendering PNG...');
+    const dataUrl = await domToPng(stage);
+    const a=document.createElement('a'); a.href=dataUrl; a.download=(fldName.value||'card')+'.png'; a.click();
+    setDiag('Exported PNG.');
+  });
+
+  // Minimal DOM to PNG (no external libs)
+  async function domToPng(node){
+    // Use SVG foreignObject trick
+    const s = new XMLSerializer();
+    const clone = node.cloneNode(true);
+    // Remove edit overlay & handles from export
+    clone.querySelector('#rulesEdit')?.remove();
+    const xml = s.serializeToString(clone);
+    const w = node.offsetWidth, h = node.offsetHeight;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject width="100%" height="100%">${xml}</foreignObject></svg>`;
+    const svgBlob = new Blob([svg], {type:'image/svg+xml;charset=utf-8'});
+    const svgUrl = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    await new Promise(res=>{ img.onload=res; img.src=svgUrl; });
+    const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d');
+    ctx.fillStyle='#111'; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0);
+    return c.toDataURL('image/png');
+  }
+
+  // Init
+  renderFields(); renderFaction(); fitArtBox(); syncInspector();
+  setDiag('Classic layout loaded. If your previous layout was saved, click “Load Layout”.');
+  </script>
 </body>
 </html>
