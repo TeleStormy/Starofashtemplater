@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater (Classic Layout v6.14)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.15)</title>
 <style>
   :root{
     --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
@@ -26,7 +26,7 @@
   header h1{font-size:16px;margin:0;letter-spacing:.4px;font-weight:600}
   header .tag{padding:4px 8px;border-radius:999px;font-size:12px;background:rgba(255,255,255,.06);border:1px solid var(--border)}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-  .left,.right{padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto} /* scrollable side panels */
+  .left,.right{padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto}
   .section{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:10px}
   .section h3{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:600}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -130,7 +130,7 @@
 <body>
   <div class="app">
     <header>
-      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.14</span></h1>
+      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.15</span></h1>
       <div class="toolbar">
         <button id="btn-export-png" class="primary">Export PNG</button>
         <button id="btn-save-layout" title="Save your current field positions to localStorage">Save Layout</button>
@@ -157,6 +157,16 @@
         <div class="row"><label>Scale</label><input type="range" id="artScale" min="20" max="300" value="100"></div>
         <div class="row"><label>Padding</label><input type="range" id="artPad" min="0" max="120" value="0"></div>
         <div class="row"><button id="fitArt" class="ok">Fit to Frame</button></div>
+      </div>
+
+      <!-- NEW: Text size sliders -->
+      <div class="section">
+        <h3>Text Sizes</h3>
+        <div class="row"><label>Name</label><input type="range" id="szName"  min="8" max="80" value="34"></div>
+        <div class="row"><label>Type</label><input type="range" id="szType"  min="8" max="80" value="20"></div>
+        <div class="row"><label>Rules</label><input type="range" id="szRules" min="8" max="80" value="16"></div>
+        <div class="row"><label>Flavor</label><input type="range" id="szFlavor"min="8" max="80" value="12"></div>
+        <div class="row"><label>Badges (ATK / HP / MOV / COST)</label><input type="range" id="szBadge" min="10" max="64" value="20"></div>
       </div>
 
       <div class="section">
@@ -331,7 +341,8 @@
     guides: false,
     art: { x:0, y:0, scale:1, pad:0 },
     frameUrl: null,
-    queue: [] // {dataUrl, name}
+    queue: [],
+    sizes: { name:34, type:20, rules:16, flavor:12, badge:20 } // NEW
   };
 
   const q = sel => document.querySelector(sel);
@@ -364,6 +375,9 @@
   const artScale = q('#artScale');
   const artPad = q('#artPad');
 
+  // NEW: size sliders
+  const szName=q('#szName'), szType=q('#szType'), szRules=q('#szRules'), szFlavor=q('#szFlavor'), szBadge=q('#szBadge');
+
   const diag = q('#diag');
   const setDiag = (msg)=>{ if(diag) diag.textContent = msg; };
 
@@ -372,13 +386,11 @@
     if(el) el.textContent = `${(state.rowIndex+1)} / ${(state.csvRows.length||0)}`;
   };
 
-  /* ---------- Helpers ---------- */
   function normalizeKey(s){return String(s||'').toLowerCase().replace(/\.[^.]+$/,'').replace(/[^a-z0-9]/g,'');}
 
-  // robust CSV parser: handles quoted commas & newlines, auto delimiter
+  /* ---------- Robust CSV ---------- */
   function parseCSV(text){
     text = String(text).replace(/^\uFEFF/, '');
-    // find first real newline (not inside quotes) to detect delimiter
     let headerEnd=0, inQ=false;
     for(let i=0;i<text.length;i++){
       const ch=text[i];
@@ -399,58 +411,37 @@
       } else if((ch==='\n') && !inQ){
         row.push(cell); rows.push(row); row=[]; cell='';
       } else if(ch==='\r'){
-        // swallow CR (CRLF handled by \n)
-      } else {
-        cell+=ch;
-      }
+      } else { cell+=ch; }
     }
     row.push(cell); rows.push(row);
 
     const headers = (rows.shift()||[]).map(h=>String(h).trim());
-    const out = rows
-      .map(r=>r.map(c=>String(c).trim()))
-      .filter(r=>r.some(v=>v.length));
-    return out.map(r=>{
-      const o={}; headers.forEach((h,i)=>o[h]=r[i]??''); return o;
-    });
+    const out = rows.map(r=>r.map(c=>String(c).trim())).filter(r=>r.some(v=>v.length));
+    return out.map(r=>{ const o={}; headers.forEach((h,i)=>o[h]=r[i]??''); return o; });
   }
-
-  // get field by fuzzy, case-insensitive header match
   function pickFuzzy(row, candidates){
-    // normalized header map
     const map={}; Object.keys(row).forEach(k=> map[normalizeKey(k)] = row[k]);
     for(const name of candidates){
       const key=normalizeKey(name);
       if(map[key]!==undefined && String(map[key]).trim()!=='') return map[key];
     }
-    // fallback: look for substring matches (e.g., "rules text", "card rules")
     for(const k in map){ for(const name of candidates){ if(k.includes(normalizeKey(name)) && String(map[k]).trim()!=='') return map[k]; } }
     return '';
   }
 
-  /* ---------- CSV / Images ---------- */
   q('#btn-load-csv').addEventListener('click',()=> q('#csvFile').click());
   q('#csvFile').addEventListener('change', ev=>{
     const f = ev.target.files[0]; if(!f) return;
     const fr = new FileReader();
-    fr.onload = ()=>{
-      state.csvRows = parseCSV(fr.result);
-      state.rowIndex=0;
-      setDiag(`Loaded ${state.csvRows.length} rows.`);
-      applyRow();
-    };
+    fr.onload = ()=>{ state.csvRows = parseCSV(fr.result); state.rowIndex=0; setDiag(`Loaded ${state.csvRows.length} rows.`); applyRow(); };
     fr.readAsText(f);
   });
 
   q('#imgFiles').addEventListener('change', ev=>{
-    const files = Array.from(ev.target.files||[]);
-    let added=0;
+    const files = Array.from(ev.target.files||[]); let added=0;
     for(const f of files){
-      const base = f.name.replace(/\.[^.]+$/,'');
-      const url = URL.createObjectURL(f);
-      state.images.set(base.toLowerCase(), url);
-      state.images.set(normalizeKey(base), url);
-      added++;
+      const base = f.name.replace(/\.[^.]+$/,''); const url = URL.createObjectURL(f);
+      state.images.set(base.toLowerCase(), url); state.images.set(normalizeKey(base), url); added++;
     }
     setDiag(`Imported ${added} images.`); applyRow();
   });
@@ -458,15 +449,11 @@
   /* ---------- Frame ---------- */
   q('#frameFile').addEventListener('change', ev=>{
     const f = ev.target.files[0]; if(!f) return;
-    const url = URL.createObjectURL(f);
-    frameTpl.src = url; frameTpl.style.display='block';
-    setDiag('Frame template loaded.');
+    const url = URL.createObjectURL(f); frameTpl.src = url; frameTpl.style.display='block'; setDiag('Frame template loaded.');
   });
   q('#frameOpacity').addEventListener('input', e=> frameTpl.style.opacity = (+e.target.value)/100);
   q('#frameZ').addEventListener('change', e=>{
-    const above = e.target.value==='above';
-    frameTpl.style.zIndex = above? 6 : 3;
-    artBox.style.zIndex = above? 4 : 6;
+    const above = e.target.value==='above'; frameTpl.style.zIndex = above? 6 : 3; artBox.style.zIndex = above? 4 : 6;
   });
 
   /* ---------- Apply CSV row ---------- */
@@ -491,7 +478,7 @@
       let hit=null; for(const v of variants){ if(state.images.has(v)){ hit=state.images.get(v); break; } }
       if(hit){ art.src=hit; setDiag('Matched art: '+artKeyRaw); } else { art.removeAttribute('src'); }
     }
-    renderFields(); renderFaction(); fitArtBox();
+    renderFields(); renderFaction(); fitArtBox(); applySizes();
     deckPos();
   }
 
@@ -501,10 +488,7 @@
     q('#type').textContent  = fldType.value || 'Type — Subtype';
     q('#rules').textContent = fldRules.value || 'Rules text...';
     q('#flavor').textContent= fldFlavor.value || '“Flavor text...”';
-    bATK.textContent = fldATK.value;
-    bHP.textContent  = fldHP.value;
-    bMOV.textContent = fldMOV.value;
-    bCOST.textContent= fldCOST.value;
+    bATK.textContent = fldATK.value; bHP.textContent = fldHP.value; bMOV.textContent = fldMOV.value; bCOST.textContent=fldCOST.value;
   }
   function renderFaction(){ q('#factionBorder').className = 'faction-border '+fldFaction.value; }
   [fldName,fldType,fldRules,fldFlavor,fldATK,fldHP,fldMOV,fldCOST].forEach(el=> el.addEventListener('input', renderFields));
@@ -593,40 +577,67 @@
 
   q('#toggleGuides').addEventListener('click', ()=>{ state.guides=!state.guides; stage.style.outline=state.guides?'1px dashed #333':'none'; setDiag('Guides '+(state.guides?'on':'off')); });
 
-  /* ---------- Save/Load Layout ---------- */
+  /* ---------- SIZE CONTROLS (NEW) ---------- */
+  function applyBadgeScale(fontPx){
+    // Scale badge diameter based on font size, with sane limits
+    const d = Math.max(36, Math.round(fontPx * 2.2));
+    [bATK,bHP,bMOV,bCOST].forEach(el=>{
+      el.style.fontSize = fontPx + 'px';
+      el.style.minWidth = d + 'px';
+      el.style.height   = d + 'px';
+      el.style.lineHeight = d + 'px';
+      el.style.padding = '0 ' + Math.round(fontPx*0.5) + 'px';
+    });
+  }
+  function applySizes(){
+    q('#name').style.fontSize  = state.sizes.name + 'px';
+    q('#type').style.fontSize  = state.sizes.type + 'px';
+    q('#rules').style.fontSize = state.sizes.rules + 'px';
+    q('#flavor').style.fontSize= state.sizes.flavor + 'px';
+    applyBadgeScale(state.sizes.badge);
+    // sync sliders if needed
+    szName.value=state.sizes.name; szType.value=state.sizes.type; szRules.value=state.sizes.rules; szFlavor.value=state.sizes.flavor; szBadge.value=state.sizes.badge;
+  }
+  [szName,szType,szRules,szFlavor,szBadge].forEach(sl=>{
+    sl.addEventListener('input', ()=>{
+      state.sizes.name  = +szName.value;
+      state.sizes.type  = +szType.value;
+      state.sizes.rules = +szRules.value;
+      state.sizes.flavor= +szFlavor.value;
+      state.sizes.badge = +szBadge.value;
+      applySizes();
+    });
+  });
+
+  /* ---------- Save/Load Layout (persist sizes) ---------- */
   function captureLayout(){
     const pick=(el)=>({left:el.style.left||el.offsetLeft+'px', top:el.style.top||el.offsetTop+'px', width:el.style.width||el.offsetWidth+'px', height:el.style.height||el.offsetHeight+'px'});
     return {
       name: pick(elements.name), type: pick(elements.type), rules: pick(elements.rules), flavor: pick(elements.flavor),
       bMOV: pick(elements.bMOV), bATK: pick(elements.bATK), bHP: pick(elements.bHP), bCOST: pick(elements.bCOST),
       badges: pick(elements.badges), cost: pick(elements.cost),
-      art: {...state.art}, frame: {opacity: frameTpl.style.opacity || 0.95, z: frameTpl.style.zIndex||6}
+      art: {...state.art}, frame: {opacity: frameTpl.style.opacity || 0.95, z: frameTpl.style.zIndex||6},
+      sizes: {...state.sizes} // persist sizes
     };
   }
   function applyLayout(L){
     if(!L) return; const keys=['name','type','rules','flavor','bMOV','bATK','bHP','bCOST','badges','cost'];
     for(const k of keys){ const d=L[k], el=elements[k]; if(!d||!el) continue; el.style.left=d.left; el.style.top=d.top; el.style.width=d.width; el.style.height=d.height; }
-    state.art=L.art||state.art; artX.value=state.art.x; artY.value=state.art.y; artScale.value=state.art.scale*100; artPad.value=state.art.pad; applyArt();
+    state.art=L.art||state.art; if(L.sizes) state.sizes={...state.sizes, ...L.sizes}; // restore sizes
+    applySizes();
     if(L.frame){ frameTpl.style.opacity=L.frame.opacity; frameTpl.style.zIndex=L.frame.z; }
+    q('#artX').value=state.art.x; q('#artY').value=state.art.y; q('#artScale').value=state.art.scale*100; q('#artPad').value=state.art.pad; applyArt();
     syncInspector();
   }
-  q('#btn-save-layout').addEventListener('click', ()=>{ localStorage.setItem('soa_layout_v614', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
-  q('#btn-load-layout').addEventListener('click', ()=>{ const raw = localStorage.getItem('soa_layout_v614'); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); deckPos(); });
-  q('#btn-reset-layout').addEventListener('click', ()=>{ ['soa_layout_v614'].forEach(k=>localStorage.removeItem(k)); location.reload(); });
-  q('#btn-export-json').addEventListener('click', ()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v614.json'; a.click(); });
+  q('#btn-save-layout').addEventListener('click', ()=>{ localStorage.setItem('soa_layout_v615', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
+  q('#btn-load-layout').addEventListener('click', ()=>{ const raw = localStorage.getItem('soa_layout_v615'); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); deckPos(); });
+  q('#btn-reset-layout').addEventListener('click', ()=>{ ['soa_layout_v615'].forEach(k=>localStorage.removeItem(k)); location.reload(); });
+  q('#btn-export-json').addEventListener('click', ()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v615.json'; a.click(); });
   q('#importJson').addEventListener('change', ev=>{ const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ try{ applyLayout(JSON.parse(fr.result)); setDiag('Imported layout JSON.'); deckPos(); }catch{ setDiag('Invalid JSON.'); } }; fr.readAsText(f); });
 
   /* ---------- Prev/Next ---------- */
-  q('#prev').addEventListener('click', ()=>{
-    if(!state.csvRows.length) return;
-    state.rowIndex = (state.rowIndex - 1 + state.csvRows.length) % state.csvRows.length;
-    applyRow();
-  });
-  q('#next').addEventListener('click', ()=>{
-    if(!state.csvRows.length) return;
-    state.rowIndex = (state.rowIndex + 1) % state.csvRows.length;
-    applyRow();
-  });
+  q('#prev').addEventListener('click', ()=>{ if(!state.csvRows.length) return; state.rowIndex = (state.rowIndex - 1 + state.csvRows.length) % state.csvRows.length; applyRow(); });
+  q('#next').addEventListener('click', ()=>{ if(!state.csvRows.length) return; state.rowIndex = (state.rowIndex + 1) % state.csvRows.length; applyRow(); });
 
   /* ---------- PNG Export ---------- */
   q('#btn-export-png').addEventListener('click', async ()=>{
@@ -637,7 +648,7 @@
   });
 
   /* ---------- Queue (auto-save) ---------- */
-  const QUEUE_KEY = 'soa_queue_v614';
+  const QUEUE_KEY = 'soa_queue_v615';
   const queueCount = ()=> q('#queueCount').textContent = `${state.queue.length} queued`;
   function renderQueueThumbs(){
     const wrap = q('#queueThumbs'); wrap.innerHTML='';
@@ -704,7 +715,7 @@
     const sheet=document.createElement('canvas'); sheet.width=W; sheet.height=H; const ctx=sheet.getContext('2d');
     if(bg==='transparent'){ ctx.clearRect(0,0,W,H);} else { ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);}    
 
-    const saved = { ...state.art, rowIndex: state.rowIndex };
+    const saved = { ...state.art, rowIndex: state.rowIndex, sizes:{...state.sizes} };
 
     let placed=0, idx=start;
     for(let r=0;r<rows;r++){
@@ -733,9 +744,8 @@
       }
     }
 
-    // Restore state after rendering
     state.art = { x:saved.x, y:saved.y, scale:saved.scale, pad:saved.pad }; applyArt();
-    state.rowIndex = saved.rowIndex; applyRow();
+    state.rowIndex = saved.rowIndex; state.sizes = saved.sizes; applySizes(); applyRow();
 
     const out = sheet.toDataURL('image/png');
     const a=document.createElement('a'); a.href=out; a.download=fname+'.png'; a.click();
@@ -748,11 +758,12 @@
     deckPos();
     selElement.value='name'; syncInspector();
     loadQueueFromStorage();
-    setDiag('v6.14 — robust CSV + fuzzy columns + side-panel scroll. Rules should now import and render.');
+    applySizes();
+    setDiag('v6.15 — text-size sliders added & persisted.');
   }
   initDeck();
 
-  window.addEventListener('beforeunload', ()=> localStorage.setItem('soa_queue_v614', JSON.stringify(state.queue)));
+  window.addEventListener('beforeunload', ()=> localStorage.setItem('soa_queue_v615', JSON.stringify(state.queue)));
   </script>
 </body>
 </html>
