@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater (Classic Layout v6.8)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.9)</title>
 <style>
   :root{
     --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
     --accent:#c0392b; --ash:#2b2b30; --blood:#8a1d1d; --flame:#b8571b; --border:#2b2b30;
-    --ok:#57d38a; --warn:#ffb84d; --bad:#ff6b6b;
+    --ok:#57d38a; --bad:#ff6b6b;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -57,40 +57,47 @@
   .faction-border.blood{box-shadow:0 0 0 3px var(--blood) inset, 0 0 30px rgba(138,29,29,.25) inset}
   .faction-border.ash{box-shadow:0 0 0 3px var(--ash) inset, 0 0 30px rgba(43,43,48,.25) inset}
 
-  /* art area */
+  /* art area (boxed to your mock) */
   .art{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:none;user-select:none;pointer-events:none}
-  .art-box{position:absolute;inset:80px 50px 210px 50px;border:2px dashed rgba(255,255,255,.08);border-radius:10px}
+  .art-box{position:absolute;inset:150px 90px 300px 90px;border:2px dashed rgba(255,148,31,.5);border-radius:10px;pointer-events:none}
   .art-handle{
     position:absolute;left:50%;top:50%;width:80px;height:80%;max-height:120px;transform:translate(-50%,-50%);
     border-radius:12px;background:rgba(255,255,255,.06);border:1px solid var(--border);
     display:flex;align-items:center;justify-content:center;color:var(--muted);
-    font-size:12px;letter-spacing:.3px;cursor:grab;
+    font-size:12px;letter-spacing:.3px;cursor:grab;pointer-events:auto;
   }
   .art-handle:active{cursor:grabbing}
 
-  /* frame template overlay — stretched to card */
+  /* frame template overlay — stretched to card size */
   .frame-template{
     position:absolute;top:0;left:0;width:100%;height:100%;
     object-fit:fill;pointer-events:none;opacity:.95;z-index:5;
   }
 
   /* text */
-  .name{position:absolute;left:24px;top:18px;right:24px;font-weight:700;font-size:28px;letter-spacing:.4px}
-  .type-line{position:absolute;left:24px;top:58px;right:24px;color:var(--muted);font-size:14px}
+  .name{position:absolute;left:90px;top:210px;width:564px;height:40px;font-weight:700;font-size:28px;letter-spacing:.4px}
+  .type-line{position:absolute;left:90px;top:580px;width:564px;height:34px;color:#f28d3b;font-size:14px}
   .rules{
-    position:absolute;left:24px;right:24px;bottom:86px;min-height:150px;
+    position:absolute;left:230px;top:730px;width:360px;height:260px;
     font-size:14px;line-height:1.35;background:rgba(255,255,255,.03);padding:12px 14px;
-    border-radius:10px;border:1px solid var(--border)
+    border-radius:10px;border:1px solid #d24b4b;color:#f2f2f2
   }
   .flavor{position:absolute;left:24px;right:24px;bottom:24px;font-size:12px;color:#c8c3bd;font-style:italic}
 
   /* badges */
-  .badges{position:absolute;right:18px;top:18px;display:flex;gap:8px;z-index:999}
-  .badge{min-width:42px;height:42px;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:700}
+  .badges{position:absolute;left:88px;top:700px;display:flex;flex-direction:column;gap:32px;z-index:1200;pointer-events:auto}
+  .badge{min-width:70px;height:70px;border-radius:10px;background:rgba(0,0,0,.35);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px}
+
+  /* COST badge (top-left) */
+  .cost{position:absolute;left:46px;top:46px;width:120px;height:120px;z-index:1200;display:flex;align-items:center;justify-content:center}
+  .cost .badge{width:100%;height:100%;border-radius:999px;background:rgba(192,57,43,.25);border:2px solid #f28d3b;font-size:28px}
 
   /* selection overlay */
-  .edit-rect{position:absolute;border:2px solid #4da3ff;border-radius:10px;pointer-events:auto;background:rgba(77,163,255,.06)}
-  .corner{position:absolute;width:14px;height:14px;border-radius:50%;background:#4da3ff;border:2px solid #0b2340;cursor:nwse-resize}
+  .edit-rect{
+    position:absolute;border:2px solid #4da3ff;border-radius:10px;
+    background:rgba(77,163,255,.08);cursor:move;z-index:2000;pointer-events:auto
+  }
+  .corner{position:absolute;width:14px;height:14px;border-radius:50%;background:#4da3ff;border:2px solid #0b2340}
   .corner.tl{left:-9px;top:-9px;cursor:nwse-resize}
   .corner.tr{right:-9px;top:-9px;cursor:nesw-resize}
   .corner.bl{left:-9px;bottom:-9px;cursor:nesw-resize}
@@ -104,10 +111,10 @@
 <body>
   <div class="app">
     <header>
-      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.8</span></h1>
+      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.9</span></h1>
       <div class="toolbar">
         <button id="btn-export-png" class="primary">Export PNG</button>
-        <button id="btn-save-layout" title="Save your current field positions to localStorage">Save Layout</button>
+        <button id="btn-save-layout">Save Layout</button>
         <button id="btn-load-layout">Load Layout</button>
         <button id="btn-reset-layout" class="danger">Reset</button>
       </div>
@@ -129,7 +136,7 @@
         <div class="row"><label>X Offset</label><input type="range" id="artX" min="-400" max="400" value="0"></div>
         <div class="row"><label>Y Offset</label><input type="range" id="artY" min="-400" max="400" value="0"></div>
         <div class="row"><label>Scale</label><input type="range" id="artScale" min="20" max="300" value="100"></div>
-        <div class="row"><label>Padding</label><input type="range" id="artPad" min="0" max="120" value="0"></div>
+        <div class="row"><label>Padding</label><input type="range" id="artPad" min="0" max="180" value="0"></div>
         <div class="row"><button id="fitArt" class="ok">Fit to Frame</button></div>
       </div>
 
@@ -143,7 +150,7 @@
             <option value="below">Below Art</option>
           </select>
         </div>
-        <div class="row small muted">Tip: use a transparent PNG exported from your PSD/frame editor.</div>
+        <div class="row hint">Tip: use a transparent PNG exported from your PSD.</div>
       </div>
 
       <div class="section">
@@ -164,6 +171,7 @@
           <label>ATK</label><input id="fldATK" type="number" value="1">
           <label>HP</label><input id="fldHP" type="number" value="1">
           <label>MOV</label><input id="fldMOV" type="number" value="1">
+          <label>COST</label><input id="fldCOST" type="number" value="1">
         </div>
       </div>
 
@@ -193,12 +201,15 @@
           <div id="rules" class="rules">Rules text...</div>
           <div id="flavor" class="flavor">“Flavor text...”</div>
 
+          <div id="cost" class="cost"><div id="bCOST" class="badge" title="Cost">1</div></div>
+
           <div id="badges" class="badges">
-            <div id="bMOV" class="badge" title="Movement">1</div>
             <div id="bATK" class="badge" title="Attack">1</div>
             <div id="bHP" class="badge" title="Health">1</div>
+            <div id="bMOV" class="badge" title="Movement">1</div>
           </div>
 
+          <!-- selection -->
           <div id="selEdit" class="edit-rect" style="display:none">
             <div class="corner tl" data-corner="tl"></div>
             <div class="corner tr" data-corner="tr"></div>
@@ -219,17 +230,19 @@
             <option value="type">Type</option>
             <option value="rules">Rules Box</option>
             <option value="flavor">Flavor</option>
-            <option value="bMOV">Badge — MOV</option>
+            <option value="bCOST">Badge — COST</option>
             <option value="bATK">Badge — ATK</option>
             <option value="bHP">Badge — HP</option>
+            <option value="bMOV">Badge — MOV</option>
             <option value="badges">Badge Cluster</option>
+            <option value="cost">Cost Group</option>
           </select>
         </div>
         <div class="row"><label>X</label><input id="posX" type="number" value="24"><label>Y</label><input id="posY" type="number" value="18"></div>
-        <div class="row"><label>W</label><input id="posW" type="number" value="696"><label>H</label><input id="posH" type="number" value="40"></div>
+        <div class="row"><label>W</label><input id="posW" type="number" value="120"><label>H</label><input id="posH" type="number" value="120"></div>
         <div class="row"><button id="applyLayout">Apply</button><button id="toggleGuides">Toggle Guides</button></div>
         <div class="row"><label class="pill">Uniform layout mode</label><input id="uniformMode" type="checkbox" checked></div>
-        <div class="row hint">When enabled, any move/resize applies globally and is used for every CSV row and in sheet export.</div>
+        <div class="row hint">Drag the blue box to move. Use corners to resize. Arrow keys nudge (Shift = 10px).</div>
       </div>
 
       <div class="section">
@@ -251,7 +264,6 @@
         <div class="row"><label>Filename</label><input id="sheetName" type="text" value="SoA_TTS_10x7"></div>
         <div class="row"><button id="buildSheet" class="primary">Build TTS Sheet (PNG)</button></div>
         <div class="sheet-preview" id="sheetPreview">Sheet preview ready</div>
-        <div class="row small muted">Note: All cards render with the same size & layout. Warchiefs use the same frame.</div>
       </div>
 
       <div class="section">
@@ -267,418 +279,126 @@
     </aside>
   </div>
 
-  <script>
-  // ------- State -------
-  const state = {
-    csvRows: [],
-    rowIndex: 0,
-    images: new Map(), // key: normalized -> objectURL
-    layout: null,
-    guides: false,
-    art: { x:0, y:0, scale:1, pad:0 },
-    frameUrl: null
-  };
+<script>
+/* ========================= State & refs ========================= */
+const state = {
+  csvRows: [], rowIndex: 0,
+  images: new Map(),
+  guides:false,
+  art:{x:0,y:0,scale:1,pad:0},
+  frameUrl:null
+};
+const q = s=>document.querySelector(s);
+const stage = q('#stage');
+const art = q('#art'), artBox=q('#artBox'), artHandle=q('#artHandle');
+const frameTpl = q('#frameTpl'), selEdit=q('#selEdit');
+const fldName=q('#fldName'), fldType=q('#fldType'), fldRules=q('#fldRules'), fldFlavor=q('#fldFlavor'), fldFaction=q('#fldFaction');
+const fldATK=q('#fldATK'), fldHP=q('#fldHP'), fldMOV=q('#fldMOV'), fldCOST=q('#fldCOST');
+const bATK=q('#bATK'), bHP=q('#bHP'), bMOV=q('#bMOV'), bCOST=q('#bCOST');
+const badges=q('#badges'), costGroup=q('#cost');
+const posX=q('#posX'), posY=q('#posY'), posW=q('#posW'), posH=q('#posH'), selElement=q('#selElement');
+const diag=q('#diag'); const setDiag=m=>diag&&(diag.textContent=m);
 
-  const q = sel => document.querySelector(sel);
-  const stage = q('#stage');
-  const art = q('#art');
-  const artBox = q('#artBox');
-  const artHandle = q('#artHandle');
-  const selEdit = q('#selEdit');
-  const frameTpl = q('#frameTpl');
+/* ========================= CSV & images ========================= */
+function detectDelimiter(first){ const c=(s,r)=>(s.match(r)||[]).length; const m=[[',',c(first,/,/g)],[ ';',c(first,/;/g) ],['\t',c(first,/\t/g)]].sort((a,b)=>b[1]-a[1])[0][0]; return m||',';}
+function splitCSVLine(line,d){ const out=[]; let cur='',q=false; for(let i=0;i<line.length;i++){ const ch=line[i]; if(ch=='"'){ if(q&&line[i+1]=='"'){cur+='"';i++;} else q=!q; } else if(ch===d&&!q){ out.push(cur); cur=''; } else cur+=ch; } out.push(cur); return out;}
+function parseCSV(text){ text=String(text).replace(/^\uFEFF/,'').replace(/\r/g,''); const lines=text.split('\n').filter(Boolean); if(!lines.length) return []; const d=detectDelimiter(lines[0]); const headers=splitCSVLine(lines.shift(),d).map(h=>h.trim()); return lines.map(L=>{const cells=splitCSVLine(L,d); const r={}; headers.forEach((h,i)=>r[h]=(cells[i]??'').trim()); return r;}); }
+q('#btn-load-csv').addEventListener('click',()=>q('#csvFile').click());
+q('#csvFile').addEventListener('change',ev=>{ const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ state.csvRows=parseCSV(fr.result); state.rowIndex=0; setDiag(`Loaded ${state.csvRows.length} rows.`); applyRow(); }; fr.readAsText(f); });
+function normalizeKey(s){return String(s||'').toLowerCase().replace(/\.[^.]+$/,'').replace(/[^a-z0-9]/g,'');}
+q('#imgFiles').addEventListener('change',ev=>{ let n=0; for(const f of Array.from(ev.target.files||[])){ const base=f.name.replace(/\.[^.]+$/,''); const url=URL.createObjectURL(f); state.images.set(base.toLowerCase(),url); state.images.set(normalizeKey(base),url); n++; } setDiag(`Imported ${n} images.`); applyRow(); });
 
-  const fldName = q('#fldName');
-  const fldType = q('#fldType');
-  const fldRules = q('#fldRules');
-  const fldFlavor = q('#fldFlavor');
-  const fldFaction = q('#fldFaction');
-  const bATK = q('#bATK');
-  const bHP  = q('#bHP');
-  const bMOV = q('#bMOV');
-  const badges = q('#badges');
+/* ========================= Frame ========================= */
+q('#frameFile').addEventListener('change',ev=>{ const f=ev.target.files[0]; if(!f) return; const u=URL.createObjectURL(f); frameTpl.src=u; frameTpl.style.display='block'; });
+q('#frameOpacity').addEventListener('input',e=> frameTpl.style.opacity=(+e.target.value)/100);
+q('#frameZ').addEventListener('change',e=>{ const above=e.target.value==='above'; frameTpl.style.zIndex=above?6:3; artBox.style.zIndex=above?4:6; });
 
-  const artX = q('#artX');
-  const artY = q('#artY');
-  const artScale = q('#artScale');
-  const artPad = q('#artPad');
+/* ========================= Row apply ========================= */
+function pick(o,ks){ for(const k of ks){ if(o&&o[k]!=null&&String(o[k]).trim()!=='') return o[k]; } return ''; }
+function applyRow(){
+  const r=state.csvRows[state.rowIndex]||null;
+  if(r){
+    fldName.value = pick(r,['Name','Card Name','CardName','name'])||fldName.value;
+    fldType.value = pick(r,['Type','CardType','type'])||fldType.value;
+    fldRules.value= pick(r,['Rules','RulesText','rules','Text'])||fldRules.value;
+    fldFlavor.value=pick(r,['Flavor','FlavorText','flavor'])||fldFlavor.value;
+    const faction=(pick(r,['Faction','faction'])||'ash').toLowerCase();
+    fldFaction.value=['flame','blood','ash'].includes(faction)?faction:'ash';
+    fldATK.value=pick(r,['ATK','Attack','atk'])||fldATK.value;
+    fldHP.value =pick(r,['HP','Health','hp'])||fldHP.value;
+    fldMOV.value=pick(r,['MOV','Move','Movement','mov'])||fldMOV.value;
+    fldCOST.value=pick(r,['Cost','COST','cost'])||fldCOST.value;
 
-  const diag = q('#diag');
-  const setDiag = (msg)=>{ if(diag) diag.textContent = msg; };
-
-  // ------- Helpers -------
-  function normalizeKey(s){
-    return String(s||'')
-      .toLowerCase()
-      .replace(/\.[^.]+$/,'')   // strip extension
-      .replace(/[^a-z0-9]/g,''); // drop spaces/underscores/dashes
+    const artKey=pick(r,['Art','Artwork','Image','ArtFile'])||fldName.value||'';
+    let hit=null; for(const v of [artKey.toLowerCase().replace(/\.[^.]+$/,''), normalizeKey(artKey)]){ if(state.images.has(v)){ hit=state.images.get(v); break; } }
+    if(hit) art.src=hit; else art.removeAttribute('src');
   }
+  renderFields(); renderFaction(); fitArtBox();
+}
+function renderFields(){ q('#name').textContent=fldName.value||'Name'; q('#type').textContent=fldType.value||'Type — Subtype'; q('#rules').textContent=fldRules.value||'Rules text...'; q('#flavor').textContent=fldFlavor.value||'“Flavor text...”'; bATK.textContent=fldATK.value; bHP.textContent=fldHP.value; bMOV.textContent=fldMOV.value; bCOST.textContent=fldCOST.value; }
+function renderFaction(){ q('#factionBorder').className='faction-border '+fldFaction.value; }
+[fldName,fldType,fldRules,fldFlavor,fldATK,fldHP,fldMOV,fldCOST].forEach(el=>el.addEventListener('input',renderFields));
+fldFaction.addEventListener('change',renderFaction);
 
-  // ------- CSV Loading (safe, no RegExp building) -------
-  function detectDelimiter(firstLine){
-    const counts = {
-      ',': (firstLine.match(/,/g)||[]).length,
-      ';': (firstLine.match(/;/g)||[]).length,
-      '\t': (firstLine.match(/\t/g)||[]).length
-    };
-    return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0].replace('\\t','\t') || ',';
-  }
-  function splitCSVLine(line, delim){
-    const out = []; let cur=''; let inQ=false;
-    for (let i=0;i<line.length;i++){
-      const ch=line[i];
-      if (ch === '"'){
-        if (inQ && line[i+1] === '"'){ cur+='"'; i++; }
-        else { inQ = !inQ; }
-      } else if (ch === delim && !inQ){ out.push(cur); cur=''; }
-      else { cur += ch; }
-    }
-    out.push(cur); return out;
-  }
-  function parseCSV(text){
-    text = String(text).replace(/^\uFEFF/, '').replace(/\r/g,''); // strip BOM + CR
-    const lines = text.split('\n').filter(l=>l.length);
-    if (!lines.length) return [];
-    const delim = detectDelimiter(lines[0]);
-    const headers = splitCSVLine(lines.shift(), delim).map(h=>h.trim());
-    const rows = lines.map(line=>{
-      const cells = splitCSVLine(line, delim);
-      const row={}; headers.forEach((h,i)=> row[h] = (cells[i]??'').trim());
-      return row;
-    });
-    setDiag(`CSV parsed with "${delim === '\t' ? 'tab' : delim}" — ${rows.length} rows`);
-    return rows;
-  }
+/* ========================= Art controls ========================= */
+const artX=q('#artX'), artY=q('#artY'), artScale=q('#artScale'), artPad=q('#artPad');
+function applyArt(){ const p=state.art.pad; art.style.left=`calc(50% + ${state.art.x}px)`; art.style.top=`calc(50% + ${state.art.y}px)`; art.style.transform=`translate(-50%,-50%) scale(${state.art.scale})`; artBox.style.inset=`${150+p}px ${90+p}px ${300+p}px ${90+p}px`; }
+function fitArtBox(){ state.art={x:0,y:0,scale:1,pad:0}; artX.value=0; artY.value=0; artScale.value=100; artPad.value=0; applyArt(); }
+artX.addEventListener('input',e=>{state.art.x=+e.target.value; applyArt();});
+artY.addEventListener('input',e=>{state.art.y=+e.target.value; applyArt();});
+artScale.addEventListener('input',e=>{state.art.scale=(+e.target.value)/100; applyArt();});
+artPad.addEventListener('input',e=>{state.art.pad=+e.target.value; applyArt();});
+q('#fitArt').addEventListener('click',fitArtBox);
+let draggingArt=false,sx=0,sy=0,ax=0,ay=0;
+artHandle.addEventListener('mousedown',e=>{draggingArt=true; sx=e.clientX; sy=e.clientY; ax=state.art.x; ay=state.art.y; e.preventDefault();});
+window.addEventListener('mousemove',e=>{ if(!draggingArt) return; state.art.x=ax+(e.clientX-sx); state.art.y=ay+(e.clientY-sy); artX.value=state.art.x; artY.value=state.art.y; applyArt(); });
+window.addEventListener('mouseup',()=>draggingArt=false);
 
-  q('#btn-load-csv').addEventListener('click',()=> q('#csvFile').click());
-  q('#csvFile').addEventListener('change', ev=>{
-    const f = ev.target.files[0]; if(!f) return;
-    const fr = new FileReader();
-    fr.onload = () => {
-      try {
-        state.csvRows = parseCSV(fr.result); state.rowIndex=0; setDiag(`Loaded ${state.csvRows.length} rows.`); applyRow();
-      } catch(e){ console.error(e); setDiag('CSV parse error.'); }
-    };
-    fr.readAsText(f);
-  });
+/* ========================= Layout editing ========================= */
+const elements={ name:q('#name'), type:q('#type'), rules:q('#rules'), flavor:q('#flavor'), bCOST, bATK, bHP, bMOV, badges, cost:costGroup };
+Object.values(elements).forEach(el=>{ if(el && getComputedStyle(el).position==='static') el.style.position='absolute'; });
+function boundsInStage(el){ const r=el.getBoundingClientRect(), s=stage.getBoundingClientRect(); return {x:r.left-s.left,y:r.top-s.top,w:r.width,h:r.height}; }
+function syncInspector(){ const el=elements[selElement.value]; if(!el) return; const b=boundsInStage(el); posX.value=Math.round(b.x); posY.value=Math.round(b.y); posW.value=Math.round(b.w); posH.value=Math.round(b.h); selEdit.style.display='block'; selEdit.style.left=(b.x-2)+'px'; selEdit.style.top=(b.y-2)+'px'; selEdit.style.width=(b.w+4)+'px'; selEdit.style.height=(b.h+4)+'px'; }
+function applyBoxTo(el){ el.style.left=posX.value+'px'; el.style.top=posY.value+'px'; el.style.width=posW.value+'px'; el.style.height=posH.value+'px'; }
+q('#applyLayout').addEventListener('click',()=>{ const el=elements[selElement.value]; if(!el) return; applyBoxTo(el); syncInspector(); setDiag('Applied layout to '+selElement.value); });
+selElement.addEventListener('change',syncInspector);
+/* click-to-select */
+Object.entries(elements).forEach(([key,el])=>{ if(!el) return; el.addEventListener('mousedown',e=>{ selElement.value=key; syncInspector(); e.stopPropagation(); }); });
+/* drag selection */
+let draggingSel=false, start={x:0,y:0}, base={x:0,y:0};
+selEdit.addEventListener('mousedown',e=>{ if(e.target.classList.contains('corner')) return; draggingSel=true; start={x:e.clientX,y:e.clientY}; const el=elements[selElement.value]; const b=boundsInStage(el); base={x:b.x,y:b.y}; e.preventDefault(); });
+window.addEventListener('mousemove',e=>{ if(!draggingSel) return; const dx=e.clientX-start.x, dy=e.clientY-start.y; posX.value=Math.round(base.x+dx); posY.value=Math.round(base.y+dy); const el=elements[selElement.value]; applyBoxTo(el); syncInspector();});
+window.addEventListener('mouseup',()=>draggingSel=false);
+/* corner resize */
+let resizing=false, which=null, b0={x:0,y:0,w:0,h:0}, startR={x:0,y:0};
+selEdit.querySelectorAll('.corner').forEach(c=>c.addEventListener('mousedown',e=>{ which=e.target.getAttribute('data-corner'); const el=elements[selElement.value]; b0=boundsInStage(el); startR={x:e.clientX,y:e.clientY}; resizing=true; e.preventDefault(); e.stopPropagation(); }));
+window.addEventListener('mousemove',e=>{ if(!resizing) return; const dx=e.clientX-startR.x, dy=e.clientY-startR.y; let x=b0.x,y=b0.y,w=b0.w,h=b0.h; const min=20; if(which==='br'){w=Math.max(min,b0.w+dx);h=Math.max(min,b0.h+dy);} if(which==='tr'){w=Math.max(min,b0.w+dx);h=Math.max(min,b0.h-dy);y=b0.y+(b0.h-h);} if(which==='bl'){w=Math.max(min,b0.w-dx);h=Math.max(min,b0.h+dy);x=b0.x+(b0.w-w);} if(which==='tl'){w=Math.max(min,b0.w-dx);h=Math.max(min,b0.h-dy);x=b0.x+(b0.w-w);y=b0.y+(b0.h-h);} posX.value=Math.round(x); posY.value=Math.round(y); posW.value=Math.round(w); posH.value=Math.round(h); const el=elements[selElement.value]; applyBoxTo(el); syncInspector();});
+window.addEventListener('mouseup',()=>{resizing=false;});
+/* keyboard nudge */
+window.addEventListener('keydown',e=>{ const el=elements[selElement.value]; if(!el) return; const step=e.shiftKey?10:1; if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){ let x=parseInt(posX.value), y=parseInt(posY.value); if(e.key==='ArrowLeft')x-=step; if(e.key==='ArrowRight')x+=step; if(e.key==='Up'||e.key==='ArrowUp')y-=step; if(e.key==='Down'||e.key==='ArrowDown')y+=step; posX.value=x; posY.value=y; applyBoxTo(el); syncInspector(); e.preventDefault(); }});
+q('#toggleGuides').addEventListener('click',()=>{ state.guides=!state.guides; stage.style.outline=state.guides?'1px dashed #333':'none'; });
 
-  // ------- Mass Images (fuzzy keys) -------
-  q('#imgFiles').addEventListener('change', ev=>{
-    const files = Array.from(ev.target.files||[]);
-    let added=0;
-    for (const f of files){
-      const base = f.name.replace(/\.[^.]+$/,'');
-      const url = URL.createObjectURL(f);
-      state.images.set(base.toLowerCase(), url);
-      state.images.set(normalizeKey(base), url);
-      added++;
-    }
-    setDiag(`Imported ${added} images. Matching by Art or Name (fuzzy).`);
-    applyRow();
-  });
+/* ========================= Save/Load layout ========================= */
+function captureLayout(){ const pick=el=>({left:el.style.left||el.offsetLeft+'px', top:el.style.top||el.offsetTop+'px', width:el.style.width||el.offsetWidth+'px', height:el.style.height||el.offsetHeight+'px'}); return { name:pick(elements.name), type:pick(elements.type), rules:pick(elements.rules), flavor:pick(elements.flavor), bCOST:pick(elements.bCOST), bATK:pick(elements.bATK), bHP:pick(elements.bHP), bMOV:pick(elements.bMOV), badges:pick(elements.badges), cost:pick(elements.cost), art:{...state.art}, frame:{opacity:frameTpl.style.opacity||0.95, z:frameTpl.style.zIndex||5} }; }
+function applyLayout(L){ if(!L) return; ['name','type','rules','flavor','bCOST','bATK','bHP','bMOV','badges','cost'].forEach(k=>{ const d=L[k], el=elements[k]; if(d&&el){ el.style.left=d.left; el.style.top=d.top; el.style.width=d.width; el.style.height=d.height; }}); state.art=L.art||state.art; artX.value=state.art.x; artY.value=state.art.y; artScale.value=state.art.scale*100; artPad.value=state.art.pad; applyArt(); if(L.frame){ frameTpl.style.opacity=L.frame.opacity; frameTpl.style.zIndex=L.frame.z; } syncInspector(); }
+q('#btn-save-layout').addEventListener('click',()=>{ localStorage.setItem('soa_layout_v69',JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
+q('#btn-load-layout').addEventListener('click',()=>{ const raw=localStorage.getItem('soa_layout_v69')||localStorage.getItem('soa_layout_v68'); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); });
+q('#btn-reset-layout').addEventListener('click',()=>{ ['soa_layout_v69','soa_layout_v68'].forEach(localStorage.removeItem.bind(localStorage)); location.reload(); });
+q('#btn-export-json').addEventListener('click',()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v69.json'; a.click(); });
+q('#importJson').addEventListener('change',ev=>{ const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ try{ applyLayout(JSON.parse(fr.result)); setDiag('Imported layout JSON.'); }catch{ setDiag('Invalid JSON.'); } }; fr.readAsText(f); });
 
-  // ------- Frame Template Loader -------
-  q('#frameFile').addEventListener('change', ev=>{
-    const f = ev.target.files[0]; if(!f) return;
-    const url = URL.createObjectURL(f);
-    state.frameUrl = url; frameTpl.src = url; frameTpl.style.display = 'block';
-    setDiag('Frame template loaded: '+f.name+' — ensure the PNG has transparency.');
-  });
-  q('#frameOpacity').addEventListener('input', e=>{ frameTpl.style.opacity = (+e.target.value)/100; });
-  q('#frameZ').addEventListener('change', e=>{
-    const above = e.target.value === 'above';
-    frameTpl.style.zIndex = above ? 6 : 3;
-    artBox.style.zIndex = above ? 4 : 6; // swap order
-  });
+/* ========================= Export PNG / Sheet ========================= */
+q('#btn-export-png').addEventListener('click',async()=>{ setDiag('Rendering PNG...'); const dataUrl=await domToPng(stage); const a=document.createElement('a'); a.href=dataUrl; a.download=(fldName.value||'card')+'.png'; a.click(); setDiag('Exported PNG.'); });
+async function domToPng(node){ const s=new XMLSerializer(); const clone=node.cloneNode(true); clone.querySelector('#selEdit')?.remove(); const xml=s.serializeToString(clone); const w=node.offsetWidth,h=node.offsetHeight; const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject width="100%" height="100%">${xml}</foreignObject></svg>`; const blob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'}); const url=URL.createObjectURL(blob); const img=new Image(); await new Promise(res=>{img.onload=res; img.src=url;}); const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d'); ctx.clearRect(0,0,w,h); ctx.drawImage(img,0,0); return c.toDataURL('image/png'); }
+/* sheet builder (same as earlier) */
+function applyPreset(val){ const cols=q('#sheetCols'),rows=q('#sheetRows'),w=q('#sheetW'),h=q('#sheetH'),name=q('#sheetName'); if(val==='tts10x7'){cols.value=10;rows.value=7;w.value=4096;h.value=4096;name.value='SoA_TTS_10x7';} else if(val==='tts7x10'){cols.value=7;rows.value=10;w.value=4096;h.value=4096;name.value='SoA_TTS_7x10';} else if(val==='a2_7x5'){cols.value=7;rows.value=5;w.value=5600;h.value=4000;name.value='SoA_7x5_5600x4000';} }
+q('#sheetPreset').addEventListener('change',e=>applyPreset(e.target.value));
+async function renderCardToImage(){ return await domToPng(stage); }
+q('#buildSheet').addEventListener('click',async()=>{ const cols=+q('#sheetCols').value,rows=+q('#sheetRows').value,W=+q('#sheetW').value,H=+q('#sheetH').value,pad=+q('#sheetPad').value; const start=+q('#sheetStart').value,count=+q('#sheetCount').value; const bg=q('#sheetBG').value,fname=q('#sheetName').value||'SoA_TTS_Sheet'; const cellW=Math.floor((W-(cols+1)*pad)/cols), cellH=Math.floor((H-(rows+1)*pad)/rows); const sheet=document.createElement('canvas'); sheet.width=W; sheet.height=H; const ctx=sheet.getContext('2d'); if(bg==='transparent'){ctx.clearRect(0,0,W,H);}else{ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);} const saved={...state.art}; let idx=start, placed=0; for(let r=0;r<rows;r++){ for(let c=0;c<cols;c++){ if(placed>=count||idx>=state.csvRows.length) break; state.rowIndex=idx; applyRow(); const dataUrl=await renderCardToImage(); const im=await new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.src=dataUrl; }); const x=pad+c*(cellW+pad), y=pad+r*(cellH+pad); const scale=Math.min(cellW/im.width, cellH/im.height); const w=Math.round(im.width*scale), h=Math.round(im.height*scale); const offX=x+Math.floor((cellW-w)/2), offY=y+Math.floor((cellH-h)/2); ctx.drawImage(im,offX,offY,w,h); idx++; placed++; } } state.art=saved; applyArt(); const out=sheet.toDataURL('image/png'); const a=document.createElement('a'); a.href=out; a.download=fname+'.png'; a.click(); q('#sheetPreview').textContent=`Built ${placed} cards → ${fname}.png (${W}×${H})`; });
 
-  // ------- Apply CSV row to canvas -------
-  function applyRow(){
-    const r = state.csvRows[state.rowIndex] || null;
-    if(!r){ setDiag('No CSV loaded; using manual fields.'); renderFields(); renderFaction(); fitArtBox(); return; }
-
-    const pick=(obj,keys)=>{ for(const k of keys){ if(obj[k]!==undefined && String(obj[k]).trim()!=='') return obj[k]; } return ''; };
-
-    fldName.value = pick(r,['Name','Card Name','CardName','card_name','name']) || fldName.value;
-    fldType.value = pick(r,['Type','CardType','type']) || fldType.value;
-    fldRules.value = pick(r,['Rules','RulesText','rules','Text']) || fldRules.value;
-    fldFlavor.value = pick(r,['Flavor','FlavorText','flavor']) || fldFlavor.value;
-
-    const faction = (pick(r,['Faction','faction'])||'ash').toLowerCase();
-    fldFaction.value = ['flame','blood','ash'].includes(faction)? faction : 'ash';
-
-    q('#fldATK').value = pick(r,['ATK','Attack','atk']) || q('#fldATK').value;
-    q('#fldHP').value  = pick(r,['HP','Health','hp']) || q('#fldHP').value;
-    q('#fldMOV').value = pick(r,['MOV','Move','Movement','mov']) || q('#fldMOV').value;
-
-    renderFields();
-    renderFaction();
-
-    const artKeyRaw = pick(r,['Art','Artwork','Image','ArtFile']) || fldName.value || '';
-    const variants = [ String(artKeyRaw).toLowerCase().replace(/\.[^.]+$/,''), normalizeKey(artKeyRaw) ];
-    let hit=null; for(const v of variants){ if(state.images.has(v)){ hit=state.images.get(v); break; } }
-    if(hit){ art.src = hit; setDiag('Matched art: '+artKeyRaw); } else { art.removeAttribute('src'); setDiag('No art match for '+artKeyRaw); }
-    fitArtBox();
-  }
-
-  function renderFields(){
-    q('#name').textContent = fldName.value || 'Name';
-    q('#type').textContent = fldType.value || 'Type — Subtype';
-    q('#rules').textContent = fldRules.value || 'Rules text...';
-    q('#flavor').textContent = fldFlavor.value || '“Flavor text...”';
-
-    bATK.textContent = q('#fldATK').value;
-    bHP.textContent  = q('#fldHP').value;
-    bMOV.textContent = q('#fldMOV').value;
-  }
-
-  function renderFaction(){
-    const fb = q('#factionBorder');
-    fb.className = 'faction-border ' + fldFaction.value;
-  }
-
-  [fldName,fldType,fldRules,fldFlavor,q('#fldATK'),q('#fldHP'),q('#fldMOV')].forEach(el=> el.addEventListener('input', renderFields));
-  fldFaction.addEventListener('change', renderFaction);
-
-  // ------- Art transforms -------
-  function applyArt(){
-    const pad = state.art.pad;
-    art.style.left = `calc(50% + ${state.art.x}px)`;
-    art.style.top =  `calc(50% + ${state.art.y}px)`;
-    art.style.transform = `translate(-50%, -50%) scale(${state.art.scale})`;
-    artBox.style.inset = `${80+pad}px ${50+pad}px ${210+pad}px ${50+pad}px`;
-  }
-
-  function fitArtBox(){
-    state.art.x=0; state.art.y=0; state.art.scale=1; state.art.pad=0;
-    artX.value=0; artY.value=0; artScale.value=100; artPad.value=0; applyArt();
-  }
-
-  artX.addEventListener('input', e=>{ state.art.x = +e.target.value; applyArt(); });
-  artY.addEventListener('input', e=>{ state.art.y = +e.target.value; applyArt(); });
-  artScale.addEventListener('input', e=>{ state.art.scale = (+e.target.value)/100; applyArt(); });
-  artPad.addEventListener('input', e=>{ state.art.pad = +e.target.value; applyArt(); });
-  q('#fitArt').addEventListener('click', fitArtBox);
-
-  // Drag handle for art
-  let draggingArt=false, startX=0, startY=0, sX=0, sY=0;
-  artHandle.addEventListener('mousedown', e=>{
-    draggingArt=true; startX=e.clientX; startY=e.clientY; sX=state.art.x; sY=state.art.y; e.preventDefault();
-  });
-  window.addEventListener('mousemove', e=>{
-    if(!draggingArt) return; const dx=e.clientX-startX, dy=e.clientY-startY; state.art.x = sX+dx; state.art.y = sY+dy; artX.value=state.art.x; artY.value=state.art.y; applyArt();
-  });
-  window.addEventListener('mouseup', ()=> draggingArt=false);
-
-  // ------- Layout editing (with resize handles) -------
-  const elements = { name:q('#name'), type:q('#type'), rules:q('#rules'), flavor:q('#flavor'), bMOV, bATK, bHP, badges };
-  const selElement = q('#selElement');
-  const posX = q('#posX'), posY=q('#posY'), posW=q('#posW'), posH=q('#posH');
-
-  function boundsInStage(el){
-    const r = el.getBoundingClientRect();
-    const s = stage.getBoundingClientRect();
-    return {x: r.left - s.left, y: r.top - s.top, w: r.width, h: r.height};
-  }
-
-  function syncInspector(){
-    const el = elements[selElement.value];
-    const b = boundsInStage(el);
-    posX.value = Math.round(b.x);
-    posY.value = Math.round(b.y);
-    posW.value = Math.round(b.w);
-    posH.value = Math.round(b.h);
-
-    selEdit.style.display='block';
-    selEdit.style.left = (b.x - 2) + 'px';
-    selEdit.style.top  = (b.y - 2) + 'px';
-    selEdit.style.width = (b.w + 4) + 'px';
-    selEdit.style.height= (b.h + 4) + 'px';
-  }
-
-  selElement.addEventListener('change', syncInspector);
-  q('#applyLayout').addEventListener('click', ()=>{
-    const el = elements[selElement.value];
-    el.style.position='absolute';
-    el.style.left = posX.value + 'px';
-    el.style.top  = posY.value + 'px';
-    el.style.width= posW.value + 'px';
-    el.style.height= posH.value + 'px';
-    syncInspector();
-    setDiag('Applied layout to '+selElement.value);
-  });
-
-  // Drag selected overlay to move
-  let draggingSel=false, selStart={x:0,y:0}, elStart={x:0,y:0};
-  selEdit.addEventListener('mousedown', e=>{
-    if (e.target.classList.contains('corner')) return; // corner handles handled separately
-    draggingSel=true; selStart={x:e.clientX, y:e.clientY};
-    const el = elements[selElement.value]; const b = boundsInStage(el); elStart={x:b.x, y:b.y}; e.preventDefault();
-  });
-  window.addEventListener('mousemove', e=>{
-    if(!draggingSel) return; const dx=e.clientX-selStart.x, dy=e.clientY-selStart.y;
-    posX.value = Math.round(elStart.x+dx); posY.value = Math.round(elStart.y+dy); q('#applyLayout').click();
-  });
-  window.addEventListener('mouseup', ()=> draggingSel=false);
-
-  // Resize via corner handles
-  let resizing=false, whichCorner=null, base={x:0,y:0,w:0,h:0}, start={x:0,y:0};
-  function onCornerDown(e){
-    whichCorner = e.target.getAttribute('data-corner');
-    const el = elements[selElement.value]; const b = boundsInStage(el);
-    base = {x:b.x, y:b.y, w:b.w, h:b.h}; start = {x:e.clientX, y:e.clientY};
-    resizing = true; e.preventDefault(); e.stopPropagation();
-  }
-  selEdit.querySelectorAll('.corner').forEach(c=> c.addEventListener('mousedown', onCornerDown));
-  window.addEventListener('mousemove', e=>{
-    if(!resizing) return;
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
-    let x=base.x, y=base.y, w=base.w, h=base.h;
-    const min=20;
-    if (whichCorner==='br'){ w = Math.max(min, base.w + dx); h = Math.max(min, base.h + dy); }
-    if (whichCorner==='tr'){ w = Math.max(min, base.w + dx); h = Math.max(min, base.h - dy); y = base.y + (base.h - h); }
-    if (whichCorner==='bl'){ w = Math.max(min, base.w - dx); h = Math.max(min, base.h + dy); x = base.x + (base.w - w); }
-    if (whichCorner==='tl'){ w = Math.max(min, base.w - dx); h = Math.max(min, base.h - dy); x = base.x + (base.w - w); y = base.y + (base.h - h); }
-    posX.value=Math.round(x); posY.value=Math.round(y); posW.value=Math.round(w); posH.value=Math.round(h);
-    q('#applyLayout').click();
-  });
-  window.addEventListener('mouseup', ()=>{ resizing=false; });
-
-  q('#toggleGuides').addEventListener('click', ()=>{
-    state.guides = !state.guides; stage.style.outline = state.guides? '1px dashed #333' : 'none';
-    setDiag('Guides '+(state.guides?'on':'off'));
-  });
-
-  // ------- Save/Load Layout -------
-  function captureLayout(){
-    const pick=(el)=>({left:el.style.left||el.offsetLeft+'px', top:el.style.top||el.offsetTop+'px', width:el.style.width||el.offsetWidth+'px', height:el.style.height||el.offsetHeight+'px'});
-    return {
-      name: pick(elements.name),
-      type: pick(elements.type),
-      rules: pick(elements.rules),
-      flavor: pick(elements.flavor),
-      bMOV: pick(elements.bMOV),
-      bATK: pick(elements.bATK),
-      bHP: pick(elements.bHP),
-      badges: pick(elements.badges),
-      art: {...state.art},
-      frame: {opacity: frameTpl.style.opacity || 0.95, z: frameTpl.style.zIndex||5}
-    };
-  }
-  function applyLayout(layout){
-    if(!layout) return;
-    const keys=['name','type','rules','flavor','bMOV','bATK','bHP','badges'];
-    for (const k of keys){
-      const L=layout[k]; const el = elements[k]; if(!L||!el) continue;
-      el.style.left=L.left; el.style.top=L.top; el.style.width=L.width; el.style.height=L.height;
-    }
-    state.art = layout.art || state.art; artX.value=state.art.x; artY.value=state.art.y; artScale.value=state.art.scale*100; artPad.value=state.art.pad; applyArt();
-    if(layout.frame){ frameTpl.style.opacity = layout.frame.opacity; frameTpl.style.zIndex = layout.frame.z; }
-    syncInspector();
-  }
-
-  q('#btn-save-layout').addEventListener('click', ()=>{
-    const L=captureLayout(); localStorage.setItem('soa_layout_v68', JSON.stringify(L)); setDiag('Layout saved to browser storage.');
-  });
-  q('#btn-load-layout').addEventListener('click', ()=>{
-    const raw = localStorage.getItem('soa_layout_v68') || localStorage.getItem('soa_layout_v67') || localStorage.getItem('soa_layout_v66') || localStorage.getItem('soa_layout_v64');
-    if(!raw){ setDiag('No saved layout.'); return; }
-    applyLayout(JSON.parse(raw)); setDiag('Layout loaded.');
-  });
-  q('#btn-reset-layout').addEventListener('click', ()=>{ ['soa_layout_v68','soa_layout_v67','soa_layout_v66','soa_layout_v64'].forEach(k=>localStorage.removeItem(k)); location.reload(); });
-
-  // Export / Import JSON
-  q('#btn-export-json').addEventListener('click', ()=>{
-    const blob = new Blob([JSON.stringify(captureLayout(), null, 2)], {type:'application/json'});
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v68.json'; a.click();
-  });
-  q('#importJson').addEventListener('change', ev=>{
-    const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ try{ applyLayout(JSON.parse(fr.result)); setDiag('Imported layout JSON.'); }catch(e){ setDiag('Invalid JSON.'); } }; fr.readAsText(f);
-  });
-
-  // Prev/Next
-  q('#prev').addEventListener('click', ()=>{ if(state.rowIndex>0){ state.rowIndex--; applyRow(); }});
-  q('#next').addEventListener('click', ()=>{ if(state.rowIndex < state.csvRows.length-1){ state.rowIndex++; applyRow(); }});
-
-  // Export PNG
-  q('#btn-export-png').addEventListener('click', async ()=>{
-    setDiag('Rendering PNG...');
-    const dataUrl = await domToPng(stage);
-    const a=document.createElement('a'); a.href=dataUrl; a.download=(fldName.value||'card')+'.png'; a.click();
-    setDiag('Exported PNG.');
-  });
-
-  // Minimal DOM to PNG (no external libs)
-  async function domToPng(node){
-    const s = new XMLSerializer();
-    const clone = node.cloneNode(true);
-    clone.querySelector('#selEdit')?.remove();
-    const xml = s.serializeToString(clone);
-    const w = node.offsetWidth, h = node.offsetHeight;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject width="100%" height="100%">${xml}</foreignObject></svg>`;
-    const svgBlob = new Blob([svg], {type:'image/svg+xml;charset=utf-8'});
-    const svgUrl = URL.createObjectURL(svgBlob);
-    const img = new Image();
-    await new Promise(res=>{ img.onload=res; img.src=svgUrl; });
-    const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d');
-    ctx.clearRect(0,0,w,h);
-    ctx.drawImage(img,0,0);
-    return c.toDataURL('image/png');
-  }
-
-  // ------- Sheet Builder -------
-  function applyPreset(val){
-    const cols=q('#sheetCols'), rows=q('#sheetRows'), w=q('#sheetW'), h=q('#sheetH'), name=q('#sheetName');
-    if(val==='tts10x7'){ cols.value=10; rows.value=7; w.value=4096; h.value=4096; name.value='SoA_TTS_10x7'; }
-    else if(val==='tts7x10'){ cols.value=7; rows.value=10; w.value=4096; h.value=4096; name.value='SoA_TTS_7x10'; }
-    else if(val==='a2_7x5'){ cols.value=7; rows.value=5; w.value=5600; h.value=4000; name.value='SoA_7x5_5600x4000'; }
-  }
-  q('#sheetPreset').addEventListener('change', e=> applyPreset(e.target.value));
-
-  async function renderCardToImage(){ return await domToPng(stage); }
-
-  q('#buildSheet').addEventListener('click', async ()=>{
-    const cols=+q('#sheetCols').value, rows=+q('#sheetRows').value, W=+q('#sheetW').value, H=+q('#sheetH').value, pad=+q('#sheetPad').value;
-    const start=+q('#sheetStart').value, count=+q('#sheetCount').value; const bg=q('#sheetBG').value; const fname=q('#sheetName').value||'SoA_TTS_Sheet';
-    const cellW = Math.floor((W - (cols+1)*pad)/cols), cellH = Math.floor((H - (rows+1)*pad)/rows);
-
-    const sheet=document.createElement('canvas'); sheet.width=W; sheet.height=H; const ctx=sheet.getContext('2d');
-    if(bg==='transparent'){ ctx.clearRect(0,0,W,H);} else { ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);}    
-
-    const savedArt={...state.art};
-
-    let idx=start, placed=0;
-    for(let r=0;r<rows;r++){
-      for(let c=0;c<cols;c++){
-        if(placed>=count || idx>=state.csvRows.length) break;
-        state.rowIndex = idx; applyRow();
-        const dataUrl = await renderCardToImage();
-        const img = await new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.src=dataUrl; });
-        const x = pad + c*(cellW+pad), y = pad + r*(cellH+pad);
-        const scale = Math.min(cellW/img.width, cellH/img.height);
-        const drawW = Math.round(img.width*scale), drawH = Math.round(img.height*scale);
-        const offX = x + Math.floor((cellW-drawW)/2), offY = y + Math.floor((cellH-drawH)/2);
-        ctx.drawImage(img, offX, offY, drawW, drawH);
-        idx++; placed++;
-      }
-    }
-
-    state.art = savedArt; applyArt();
-
-    const out = sheet.toDataURL('image/png');
-    const a=document.createElement('a'); a.href=out; a.download=fname+'.png'; a.click();
-    q('#sheetPreview').textContent = `Built ${placed} cards → ${fname}.png (${W}×${H})`;
-    setDiag(`Sheet built: ${placed} cards.`);
-  });
-
-  // ------- Init -------
-  function initDefaults(){
-    ['name','type','rules','flavor','badges','bMOV','bATK','bHP'].forEach(id=>{
-      const el=q('#'+id); if(el && !el.style.position) el.style.position='absolute';
-    });
-  }
-  initDefaults();
-  renderFields(); renderFaction(); fitArtBox(); selElement.value='name'; syncInspector();
-  setDiag('Classic layout v6.8 loaded. CSV+Art+Frame fixes applied. Badges can now be moved & resized individually.');
-  </script>
+/* ========================= Init ========================= */
+function initDefaults(){ ['name','type','rules','flavor','badges','bATK','bHP','bMOV','bCOST','cost'].forEach(id=>{ const el=q('#'+id); if(el&&getComputedStyle(el).position==='static') el.style.position='absolute'; }); }
+initDefaults(); renderFields(); renderFaction(); fitArtBox(); selElement.value='bCOST'; syncInspector(); setDiag('v6.9 ready — COST badge added, drag/resize fixed, defaults set to your mock.');
+</script>
 </body>
 </html>
