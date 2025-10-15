@@ -307,36 +307,91 @@ async function waitForImagesLoaded(root, ms=RENDER_TIMEOUT){
   })));
 }
 
-/* ---------- CSV ---------- */
-function parseCSV(txt){
-  txt=String(txt).replace(/^\uFEFF/,'');
-  let headerEnd=0,inQ=false;
-  for(let i=0;i<txt.length;i++){const ch=txt[i];if(ch==='\"'){if(inQ&&txt[i+1]==='\"'){i++;}else inQ=!inQ;}else if((ch==='\n'||ch==='\r')&&!inQ){headerEnd=i;break;}}
-  const first=txt.slice(0,headerEnd||txt.indexOf('\n')||txt.length);
-  const counts={',':(first.match(/,/g)||[]).length,';':(first.match(/;/g)||[]).length,'\t':(first.match(/\t/g)||[]).length};
-  const delim=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0]||',';
-  const rows=[];let row=[],cell='';inQ=false;
-  for(let i=0;i<txt.length;i++){const ch=txt[i];
-    if(ch==='\"'){if(inQ&&txt[i+1]==='\"'){cell+='\"';i++;}else inQ=!inQ;}
-    else if(ch===delim&&!inQ){row.push(cell);cell='';}
-    else if(ch==='\n'&&!inQ){row.push(cell);rows.push(row);row=[];cell='';}
-    else if(ch!=='\r'){cell+=ch;}
-  } row.push(cell); rows.push(row);
-  const headers=(rows.shift()||[]).map(h=>String(h).trim());
-  return rows.map(r=>r.map(c=>String(c).trim())).filter(r=>r.some(v=>v.length)).map(r=>{const o={};headers.forEach((h,i)=>o[h]=r[i]??'');return o;});
+<script>
+// ===== CSV LOADER (robust) — drop-in for v6.27 =====
+function parseCSV(text){
+  // Normalize line endings & strip BOM
+  text = String(text || '').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  // If file is empty
+  if (!text.trim()) return [];
+
+  // Delimiter sniff (commas, semicolons, tabs, pipes)
+  const firstLine = (text.split('\n')[0] || '');
+  const counts = {
+    ',': (firstLine.match(/,/g)  || []).length,
+    ';': (firstLine.match(/;/g)  || []).length,
+    '\t':(firstLine.match(/\t/g) || []).length,
+    '|': (firstLine.match(/\|/g) || []).length
+  };
+  const delim = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0] || ',';
+
+  // Tokenize a single CSV line respecting quotes
+  function parseLine(line, d){
+    const out = [];
+    let cur = '';
+    let inQ = false;
+    for (let i=0;i<line.length;i++){
+      const ch = line[i];
+      if (ch === '"'){
+        if (inQ && line[i+1] === '"'){ cur += '"'; i++; }
+        else { inQ = !inQ; }
+      } else if (ch === d && !inQ){
+        out.push(cur); cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur);
+    return out;
+  }
+
+  const lines = text.split('\n');
+  const header = parseLine(lines.shift() || '', delim).map(s=>s.trim());
+
+  const rows = [];
+  for (const line of lines){
+    if (!line.length) continue;
+    const cells = parseLine(line, delim).map(s => String(s).trim());
+    // Skip fully-empty lines
+    if (!cells.some(v => v.length)) continue;
+    const obj = {};
+    header.forEach((h,i)=> obj[h] = (cells[i] ?? ''));
+    rows.push(obj);
+  }
+
+  setDiag(`CSV parsed (delim “${delim}”): ${rows.length} rows, ${header.length} columns.`);
+  return rows;
 }
-function pickFuzzy(row,names){
-  const map={}; Object.keys(row).forEach(k=>map[normalize(k)]=row[k]);
-  for(const n of names){const k=normalize(n); if(map[k]!=null && String(map[k]).trim()!=='') return map[k];}
-  for(const k in map){for(const n of names){if(k.includes(normalize(n)) && String(map[k]).trim()!=='') return map[k];}}
-  return '';
-}
-function deckPos(){const el=q('#deckPos'); if(el) el.textContent=`${(state.csvRows.length?state.rowIndex+1:0)} / ${(state.csvRows.length||0)}`;}
-q('#btn-load-csv').addEventListener('click',()=>q('#csvFile').click());
-q('#csvFile').addEventListener('change',ev=>{
-  const f=ev.target.files[0]; if(!f) return;
-  const fr=new FileReader(); fr.onload=()=>{ state.csvRows=parseCSV(fr.result); state.rowIndex=0; setDiag(`Loaded ${state.csvRows.length} rows.`); applyRow(); deckPos(); }; fr.readAsText(f);
+
+// Button -> open file picker
+q('#btn-load-csv').addEventListener('click',()=> q('#csvFile').click());
+
+// On file chosen -> read & parse
+q('#csvFile').addEventListener('change', (ev)=>{
+  const f = ev.target.files && ev.target.files[0];
+  if (!f){ setDiag('No CSV selected.'); return; }
+  const fr = new FileReader();
+  fr.onerror = () => setDiag('Failed to read CSV: ' + (fr.error?.message || 'unknown error'));
+  fr.onload  = () => {
+    try {
+      const rows = parseCSV(fr.result);
+      state.csvRows = rows;
+      state.rowIndex = 0;
+      if (!rows.length){
+        const preview = (String(fr.result).split(/\r?\n/).slice(0,2).join(' ⏎ ')) || '(empty)';
+        setDiag('CSV parsed but no data rows found. First lines: ' + preview);
+      }
+      applyRow();
+      deckPos();
+    } catch (e){
+      setDiag('CSV parse error: ' + (e.message || e));
+    }
+  };
+  fr.readAsText(f, 'utf-8');
 });
+</script>
+
 
 /* ---------- Images & DnD ---------- */
 function updateImgCount(){ q('#imgCount').textContent=`${state.urlToEntry.size} images imported`; }
