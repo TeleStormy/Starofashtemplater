@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater (Classic Layout v6.10)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.11)</title>
 <style>
   :root{
     --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
@@ -40,7 +40,7 @@
   button{background:#18181b;color:var(--text);border:1px solid var(--border);
     padding:8px 10px;border-radius:10px;font-size:13px;cursor:pointer}
   button.primary{background:var(--accent)}
-  .danger{background:var(--bad);border-color:#b94141}
+  .danger{background:#ff6b6b;border-color:#b94141}
   .ok{background:rgba(87,211,138,.12);border-color:#2a6}
 
   /* center canvas */
@@ -121,7 +121,7 @@
 <body>
   <div class="app">
     <header>
-      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.10</span></h1>
+      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.11</span></h1>
       <div class="toolbar">
         <button id="btn-export-png" class="primary">Export PNG</button>
         <button id="btn-save-layout" title="Save your current field positions to localStorage">Save Layout</button>
@@ -138,7 +138,7 @@
         <div class="row"><button id="btn-load-csv">Load CSV</button></div>
         <div class="row"><label class="small">Mass Import Images</label></div>
         <div class="row"><input type="file" id="imgFiles" multiple accept="image/*"></div>
-        <div class="row hint">Filenames should match <b>Art</b> column or <b>Name</b> if Art is missing (case/space/underscore-insensitive, extension ignored).</div>
+        <div class="row hint">Filenames should match <b>Art</b> column or <b>Name</b> if Art is missing.</div>
       </div>
 
       <div class="section">
@@ -187,7 +187,12 @@
 
       <div class="section">
         <h3>Deck Nav</h3>
-        <div class="row"><button id="prev">◀ Prev</button><button id="next">Next ▶</button></div>
+        <div class="row">
+          <button id="prev">◀ Prev</button>
+          <button id="next">Next ▶</button>
+          <span id="deckPos" class="pill">0 / 0</span>
+          <span class="hint">Hotkeys: [ / ]</span>
+        </div>
       </div>
     </aside>
 
@@ -218,7 +223,6 @@
 
           <!-- Individual badges with baked positions -->
           <div id="badges" class="badges" style="left:0; top:0;">
-            <!-- We'll still render these as independent elements for editing -->
             <div id="bATK" class="badge" title="Attack" style="left:143px; top:707px; position:absolute;">1</div>
             <div id="bHP"  class="badge" title="Health" style="left:95px;  top:771px; position:absolute;">1</div>
             <div id="bMOV" class="badge" title="Movement" style="left:164px; top:881px; position:absolute;">1</div>
@@ -338,13 +342,17 @@
   const diag = q('#diag');
   const setDiag = (msg)=>{ if(diag) diag.textContent = msg; };
 
-  // Helpers
+  const deckPos = ()=> {
+    const el = q('#deckPos');
+    if(el) el.textContent = `${(state.rowIndex+1)} / ${(state.csvRows.length||0)}`;
+  };
+
   function normalizeKey(s){return String(s||'').toLowerCase().replace(/\.[^.]+$/,'').replace(/[^a-z0-9]/g,'');}
 
   // CSV (safe)
   function detectDelimiter(firstLine){
-    const counts = { ',':(firstLine.match(/,/g)||[]).length, ';':(firstLine.match(/;/g)||[]).length, '\\t':(firstLine.match(/\\t/g)||[]).length };
-    return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0].replace('\\\\t','\\t') || ',';
+    const counts = { ',':(firstLine.match(/,/g)||[]).length, ';':(firstLine.match(/;/g)||[]).length, '\t':(firstLine.match(/\t/g)||[]).length };
+    return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0] || ',';
   }
   function splitCSVLine(line, delim){
     const out=[]; let cur=''; let inQ=false;
@@ -372,7 +380,12 @@
   q('#csvFile').addEventListener('change', ev=>{
     const f = ev.target.files[0]; if(!f) return;
     const fr = new FileReader();
-    fr.onload = ()=>{ state.csvRows = parseCSV(fr.result); state.rowIndex=0; setDiag(`Loaded ${state.csvRows.length} rows.`); applyRow(); };
+    fr.onload = ()=>{
+      state.csvRows = parseCSV(fr.result);
+      state.rowIndex=0;
+      setDiag(`Loaded ${state.csvRows.length} rows.`);
+      applyRow();
+    };
     fr.readAsText(f);
   });
 
@@ -404,7 +417,7 @@
     artBox.style.zIndex = above? 4 : 6;
   });
 
-  // Apply row
+  // Row apply
   const pick=(obj,keys)=>{ for(const k of keys){ if(obj && obj[k]!==undefined && String(obj[k]).trim()!=='') return obj[k]; } return ''; };
   function applyRow(){
     const r = state.csvRows[state.rowIndex] || null;
@@ -426,6 +439,7 @@
       if(hit){ art.src=hit; setDiag('Matched art: '+artKeyRaw); } else { art.removeAttribute('src'); }
     }
     renderFields(); renderFaction(); fitArtBox();
+    deckPos();
   }
 
   function renderFields(){
@@ -509,6 +523,10 @@
 
   // keyboard nudge
   window.addEventListener('keydown', e=>{
+    // quick deck cycling: [ and ] (doesn't conflict with arrows used for nudging)
+    if(e.key === '['){ if(state.csvRows.length){ state.rowIndex = (state.rowIndex - 1 + state.csvRows.length) % state.csvRows.length; applyRow(); } e.preventDefault(); return; }
+    if(e.key === ']'){ if(state.csvRows.length){ state.rowIndex = (state.rowIndex + 1) % state.csvRows.length; applyRow(); } e.preventDefault(); return; }
+
     const el=elements[selElement.value]; if(!el) return;
     const step = e.shiftKey? 10 : 1;
     if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){
@@ -538,15 +556,23 @@
     if(L.frame){ frameTpl.style.opacity=L.frame.opacity; frameTpl.style.zIndex=L.frame.z; }
     syncInspector();
   }
-  q('#btn-save-layout').addEventListener('click', ()=>{ localStorage.setItem('soa_layout_v610', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
-  q('#btn-load-layout').addEventListener('click', ()=>{ const raw = localStorage.getItem('soa_layout_v610'); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); });
-  q('#btn-reset-layout').addEventListener('click', ()=>{ ['soa_layout_v610'].forEach(k=>localStorage.removeItem(k)); location.reload(); });
-  q('#btn-export-json').addEventListener('click', ()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v610.json'; a.click(); });
-  q('#importJson').addEventListener('change', ev=>{ const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ try{ applyLayout(JSON.parse(fr.result)); setDiag('Imported layout JSON.'); }catch{ setDiag('Invalid JSON.'); } }; fr.readAsText(f); });
+  q('#btn-save-layout').addEventListener('click', ()=>{ localStorage.setItem('soa_layout_v611', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
+  q('#btn-load-layout').addEventListener('click', ()=>{ const raw = localStorage.getItem('soa_layout_v611'); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); deckPos(); });
+  q('#btn-reset-layout').addEventListener('click', ()=>{ ['soa_layout_v611'].forEach(k=>localStorage.removeItem(k)); location.reload(); });
+  q('#btn-export-json').addEventListener('click', ()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v611.json'; a.click(); });
+  q('#importJson').addEventListener('change', ev=>{ const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ try{ applyLayout(JSON.parse(fr.result)); setDiag('Imported layout JSON.'); deckPos(); }catch{ setDiag('Invalid JSON.'); } }; fr.readAsText(f); });
 
-  // Prev/Next
-  q('#prev').addEventListener('click', ()=>{ if(state.rowIndex>0){ state.rowIndex--; applyRow(); }});
-  q('#next').addEventListener('click', ()=>{ if(state.rowIndex < state.csvRows.length-1){ state.rowIndex++; applyRow(); }});
+  // Prev/Next with wrap-around
+  q('#prev').addEventListener('click', ()=>{
+    if(!state.csvRows.length) return;
+    state.rowIndex = (state.rowIndex - 1 + state.csvRows.length) % state.csvRows.length;
+    applyRow();
+  });
+  q('#next').addEventListener('click', ()=>{
+    if(!state.csvRows.length) return;
+    state.rowIndex = (state.rowIndex + 1) % state.csvRows.length;
+    applyRow();
+  });
 
   // Export PNG
   q('#btn-export-png').addEventListener('click', async ()=>{
@@ -609,11 +635,16 @@
     const a=document.createElement('a'); a.href=out; a.download=fname+'.png'; a.click();
     q('#sheetPreview').textContent = `Built ${placed} cards → ${fname}.png (${W}×${H})`;
     setDiag(`Sheet built: ${placed} cards.`);
+    deckPos();
   });
 
-  // Init: ensure positions are absolute (already baked) and show inspector on Name by default
-  selElement.value='name'; syncInspector();
-  setDiag('v6.10 loaded with baked coordinates & larger fonts.');
+  // Init
+  function initDeck(){
+    deckPos();
+    selElement.value='name'; syncInspector();
+    setDiag('v6.11 loaded. CSV navigation: wrap-around + counter + hotkeys [ / ].');
+  }
+  initDeck();
   </script>
 </body>
 </html>
