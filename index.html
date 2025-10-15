@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater (Classic Layout v6.16)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.18)</title>
 <style>
   :root{
     --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
@@ -26,7 +26,7 @@
   header h1{font-size:16px;margin:0;letter-spacing:.4px;font-weight:600}
   header .tag{padding:4px 8px;border-radius:999px;font-size:12px;background:rgba(255,255,255,.06);border:1px solid var(--border)}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-  .left,.right{padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto} /* scrollable side panels */
+  .left,.right{padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto}
   .section{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:10px}
   .section h3{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:600}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -71,30 +71,20 @@
   /* frame template overlay — stretched to card */
   .frame-template{
     position:absolute;top:0;left:0;width:100%;height:100%;
-    object-fit:fill;pointer-events:none;opacity:.95;z-index:6; /* text sits above this */
+    object-fit:fill;pointer-events:none;opacity:.95;z-index:6; /* text above this */
   }
 
   /* text (forced top layer) */
-  .name{
-    position:absolute;left:89px;top:204px;right:24px;
-    font-weight:800;font-size:34px;letter-spacing:.4px; z-index:1200;
-  }
-  .type-line{
-    position:absolute;left:90px;top:239px;right:24px;
-    color:#fff;font-size:20px;opacity:.95; z-index:1200;
-  }
+  .name{position:absolute;left:89px;top:204px;right:24px;font-weight:800;font-size:34px;letter-spacing:.4px; z-index:1200;}
+  .type-line{position:absolute;left:90px;top:239px;right:24px;color:#fff;font-size:20px;opacity:.95; z-index:1200;}
   .rules{
     position:absolute;left:238px;top:703px;right:24px;min-height:150px;
     font-size:16px;line-height:1.45;background:rgba(255,255,255,.03);padding:12px 14px;
-    border-radius:10px;border:1px solid var(--border);
-    white-space:normal;overflow-wrap:anywhere;word-wrap:break-word; z-index:1200;
+    border-radius:10px;border:1px solid var(--border);white-space:normal;overflow-wrap:anywhere;word-wrap:break-word; z-index:1200;
   }
-  .flavor{
-    position:absolute;left:24px;right:24px;bottom:24px;
-    font-size:12px;color:#c8c3bd;font-style:italic; z-index:1200;
-  }
+  .flavor{position:absolute;left:24px;right:24px;bottom:24px;font-size:12px;color:#c8c3bd;font-style:italic; z-index:1200;}
 
-  /* badges (also top layer) */
+  /* badges (top layer) */
   .badges{position:absolute;display:flex;gap:8px;z-index:1200;pointer-events:auto}
   .badge{
     min-width:52px;height:52px;border-radius:999px;background:rgba(0,0,0,.35);
@@ -105,10 +95,7 @@
   .cost .badge{background:rgba(192,57,43,.38)}
 
   /* selection overlay */
-  .edit-rect{
-    position:absolute;border:2px solid #4da3ff;border-radius:10px;
-    background:rgba(77,163,255,.08);cursor:move;z-index:2000;pointer-events:auto
-  }
+  .edit-rect{position:absolute;border:2px solid #4da3ff;border-radius:10px;background:rgba(77,163,255,.08);cursor:move;z-index:2000;pointer-events:auto}
   .corner{position:absolute;width:14px;height:14px;border-radius:50%;background:#4da3ff;border:2px solid #0b2340}
   .corner.tl{left:-9px;top:-9px;cursor:nwse-resize}
   .corner.tr{right:-9px;top:-9px;cursor:nesw-resize}
@@ -129,7 +116,7 @@
 <body>
   <div class="app">
     <header>
-      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.16</span></h1>
+      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.18</span></h1>
       <div class="toolbar">
         <button id="btn-export-png" class="primary">Export PNG</button>
         <button id="btn-save-layout" title="Save your current field positions to localStorage">Save Layout</button>
@@ -207,6 +194,8 @@
         <h3>Card Queue</h3>
         <div class="row">
           <button id="btn-queue" class="ok" title="Hotkey: Q">Add Current to Queue</button>
+          <button id="btn-save-queue">Save Queue</button>
+          <button id="btn-export-queue" class="primary">Export Queue PNGs</button>
           <button id="btn-clear-queue" class="danger">Clear Queue</button>
           <span id="queueCount" class="pill">0 queued</span>
         </div>
@@ -332,6 +321,29 @@
   </div>
 
   <script>
+  // ------- Helpers / Error Surfacing -------
+  const q = sel => document.querySelector(sel);
+  const diag = () => q('#diag');
+  const setDiag = (msg)=>{ const d=diag(); if(d) d.textContent = msg; };
+
+  // Show any runtime errors in the Diagnostics panel AND console
+  window.addEventListener('error', (e)=>{
+    console.error(e.error || e.message);
+    setDiag('Error: ' + (e.error?.message || e.message));
+  });
+  window.addEventListener('unhandledrejection', (e)=>{
+    console.error('Unhandled promise rejection:', e.reason);
+    setDiag('Promise error: ' + (e.reason?.message || e.reason));
+  });
+
+  // Safe localStorage access (handles private mode / quota)
+  function lsGet(key, fallback){
+    try{ const v = localStorage.getItem(key); return v==null? fallback : v; }catch{ return fallback; }
+  }
+  function lsSet(key, val){
+    try{ localStorage.setItem(key, val); return true; }catch(err){ setDiag('Storage error: ' + err.message); return false; }
+  }
+
   // ------- State -------
   const state = {
     csvRows: [],
@@ -344,7 +356,6 @@
     sizes: { name:34, type:20, rules:16, flavor:12, badge:20 }
   };
 
-  const q = sel => document.querySelector(sel);
   const stage = q('#stage');
   const art = q('#art');
   const artBox = q('#artBox');
@@ -376,9 +387,6 @@
 
   // size sliders
   const szName=q('#szName'), szType=q('#szType'), szRules=q('#szRules'), szFlavor=q('#szFlavor'), szBadge=q('#szBadge');
-
-  const diag = q('#diag');
-  const setDiag = (msg)=>{ if(diag) diag.textContent = msg; };
 
   const deckPos = ()=> {
     const el = q('#deckPos');
@@ -568,8 +576,8 @@
     const step = e.shiftKey? 10 : 1;
     if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){
       let x=parseInt(posX.value), y=parseInt(posY.value);
-      if(e.key==='ArrowLeft') x-=step; if(e.key==='ArrowRight') x+=step;
-      if(e.key==='ArrowUp') y-=step; if(e.key==='ArrowDown') y+=step;
+      if(e.key==='ArrowLeft') x-=step; if(e.key==='Right' || e.key==='ArrowRight') x+=step;
+      if(e.key==='ArrowUp') y-=step; if(e.key==='Down' || e.key==='ArrowDown') y+=step;
       posX.value=x; posY.value=y; applyBoxTo(el); syncInspector(); e.preventDefault();
     }
   });
@@ -595,7 +603,7 @@
     applyBadgeScale(state.sizes.badge);
     szName.value=state.sizes.name; szType.value=state.sizes.type; szRules.value=state.sizes.rules; szFlavor.value=state.sizes.flavor; szBadge.value=state.sizes.badge;
   }
-  [szName,szType,szRules,szFlavor,szBadge].forEach(sl=>{
+  ;[szName,szType,szRules,szFlavor,szBadge].forEach(sl=>{
     sl.addEventListener('input', ()=>{
       state.sizes.name  = +szName.value;
       state.sizes.type  = +szType.value;
@@ -606,7 +614,7 @@
     });
   });
 
-  /* ---------- Save/Load Layout (persist sizes) ---------- */
+  /* ---------- Save/Load Layout ---------- */
   function captureLayout(){
     const pick=(el)=>({left:el.style.left||el.offsetLeft+'px', top:el.style.top||el.offsetTop+'px', width:el.style.width||el.offsetWidth+'px', height:el.style.height||el.offsetHeight+'px'});
     return {
@@ -625,10 +633,10 @@
     if(L.frame){ frameTpl.style.opacity=L.frame.opacity; frameTpl.style.zIndex=L.frame.z; }
     syncInspector();
   }
-  q('#btn-save-layout').addEventListener('click', ()=>{ localStorage.setItem('soa_layout_v616', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
-  q('#btn-load-layout').addEventListener('click', ()=>{ const raw = localStorage.getItem('soa_layout_v616'); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); deckPos(); });
-  q('#btn-reset-layout').addEventListener('click', ()=>{ ['soa_layout_v616'].forEach(k=>localStorage.removeItem(k)); location.reload(); });
-  q('#btn-export-json').addEventListener('click', ()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v616.json'; a.click(); });
+  q('#btn-save-layout').addEventListener('click', ()=>{ lsSet('soa_layout_v618', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
+  q('#btn-load-layout').addEventListener('click', ()=>{ const raw = lsGet('soa_layout_v618', null); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); deckPos(); });
+  q('#btn-reset-layout').addEventListener('click', ()=>{ try{ localStorage.removeItem('soa_layout_v618'); }catch{} location.reload(); });
+  q('#btn-export-json').addEventListener('click', ()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v618.json'; a.click(); });
   q('#importJson').addEventListener('change', ev=>{ const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ try{ applyLayout(JSON.parse(fr.result)); setDiag('Imported layout JSON.'); deckPos(); }catch{ setDiag('Invalid JSON.'); } }; fr.readAsText(f); });
 
   /* ---------- Prev/Next ---------- */
@@ -636,16 +644,50 @@
   q('#next').addEventListener('click', ()=>{ if(!state.csvRows.length) return; state.rowIndex = (state.rowIndex + 1) % state.csvRows.length; applyRow(); });
 
   /* ---------- PNG Export ---------- */
+  async function domToPng(node){
+    try{
+      const s = new XMLSerializer();
+      const clone = node.cloneNode(true);
+      clone.querySelector('#selEdit')?.remove();
+      const xml = s.serializeToString(clone);
+      const w = node.offsetWidth, h = node.offsetHeight;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject width="100%" height="100%">${xml}</foreignObject></svg>`;
+      const svgBlob = new Blob([svg], {type:'image/svg+xml;charset=utf-8'});
+      const svgUrl = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      // Try to avoid tainting by staying same-origin (blob:)
+      await new Promise(res=>{ img.onload=res; img.src=svgUrl; });
+      const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d');
+      ctx.clearRect(0,0,w,h); ctx.drawImage(img,0,0);
+
+      // Detect tainted canvas explicitly
+      try { ctx.getImageData(0,0,1,1); } catch(err) {
+        setDiag('Security: Canvas is tainted (likely a remote image without CORS). Use local uploads for art/frame.');
+        throw err;
+      }
+      return c.toDataURL('image/png');
+    }catch(err){
+      console.error(err);
+      if(String(err).includes('tainted')) {
+        setDiag('Render blocked: cross-origin image. Use local files or enable CORS on the image host.');
+      } else {
+        setDiag('Render failed: ' + (err.message||err));
+      }
+      throw err;
+    }
+  }
+
   q('#btn-export-png').addEventListener('click', async ()=>{
     setDiag('Rendering PNG...');
-    const dataUrl = await domToPng(stage);
-    const a=document.createElement('a'); a.href=dataUrl; a.download=(fldName.value||'card')+'.png'; a.click();
-    setDiag('Exported PNG.');
+    try{
+      const dataUrl = await domToPng(stage);
+      const a=document.createElement('a'); a.href=dataUrl; a.download=(fldName.value||'card')+'.png'; a.click();
+      setDiag('Exported PNG.');
+    }catch{/* message already shown */}
   });
 
-  /* ---------- Queue (fixed & robust) ---------- */
-  const QUEUE_KEY = 'soa_queue_v616';
-
+  /* ---------- Queue ---------- */
+  const QUEUE_KEY = 'soa_queue_v618';
   const queueCount = ()=> q('#queueCount').textContent = `${state.queue.length} queued`;
 
   function renderQueueThumbs(){
@@ -654,49 +696,51 @@
       const d = document.createElement('div'); d.className='thumb';
       const img = document.createElement('img'); img.src=item.dataUrl; img.alt=item.name||('Card '+(idx+1));
       const rm = document.createElement('button'); rm.textContent='×'; rm.className='danger';
-      rm.addEventListener('click', ()=>{ state.queue.splice(idx,1); localStorage.setItem(QUEUE_KEY, JSON.stringify(state.queue)); renderQueueThumbs(); queueCount(); });
+      rm.addEventListener('click', ()=>{ state.queue.splice(idx,1); lsSet(QUEUE_KEY, JSON.stringify(state.queue)); renderQueueThumbs(); queueCount(); });
       d.appendChild(img); d.appendChild(rm); wrap.appendChild(d);
     });
   }
 
   function loadQueueFromStorage(){
     let arr = [];
-    try { arr = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch {}
+    try { arr = JSON.parse(lsGet(QUEUE_KEY, '[]')); } catch {}
     if (Array.isArray(arr)) state.queue = arr.filter(x => x && x.dataUrl);
     queueCount();
     renderQueueThumbs();
   }
 
-  async function domToPng(node){
-    const s = new XMLSerializer();
-    const clone = node.cloneNode(true);
-    clone.querySelector('#selEdit')?.remove();
-    const xml = s.serializeToString(clone);
-    const w = node.offsetWidth, h = node.offsetHeight;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject width="100%" height="100%">${xml}</foreignObject></svg>`;
-    const svgBlob = new Blob([svg], {type:'image/svg+xml;charset=utf-8'});
-    const svgUrl = URL.createObjectURL(svgBlob);
-    const img = new Image();
-    await new Promise(res=>{ img.onload=res; img.src=svgUrl; });
-    const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d');
-    ctx.clearRect(0,0,w,h); ctx.drawImage(img,0,0);
-    return c.toDataURL('image/png');
-  }
-
   async function addCurrentToQueue(){
-    const dataUrl = await domToPng(stage);
-    const name = fldName.value || `Card ${state.queue.length+1}`;
-    state.queue.push({dataUrl, name});
-    queueCount(); renderQueueThumbs();
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(state.queue));
-    setDiag(`Queued: ${name}`);
+    try{
+      const dataUrl = await domToPng(stage);
+      const name = fldName.value || `Card ${state.queue.length+1}`;
+      state.queue.push({dataUrl, name});
+      queueCount(); renderQueueThumbs();
+      lsSet(QUEUE_KEY, JSON.stringify(state.queue));
+      setDiag(`Queued: ${name} (auto-saved)`);
+    }catch{/* already surfaced */}
+  }
+  function forceSaveQueue(){
+    lsSet(QUEUE_KEY, JSON.stringify(state.queue));
+    setDiag(`Queue saved (${state.queue.length})`);
+  }
+  function exportQueuePNGs(){
+    if(!state.queue.length){ setDiag('Queue is empty.'); return; }
+    state.queue.forEach((item, i)=>{
+      const a=document.createElement('a');
+      const safe = String(item.name||`Card ${i+1}`).replace(/[^a-z0-9_\- ]/ig,'_');
+      a.href=item.dataUrl; a.download=`${String(i+1).padStart(2,'0')}_${safe}.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+    });
+    setDiag(`Exported ${state.queue.length} PNGs.`);
   }
 
   q('#btn-queue').addEventListener('click', addCurrentToQueue);
+  q('#btn-save-queue').addEventListener('click', forceSaveQueue);
+  q('#btn-export-queue').addEventListener('click', exportQueuePNGs);
   q('#btn-clear-queue').addEventListener('click', ()=>{
     state.queue = [];
     renderQueueThumbs(); queueCount();
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(state.queue));
+    lsSet(QUEUE_KEY, JSON.stringify(state.queue));
     setDiag('Queue cleared.');
   });
 
@@ -762,14 +806,14 @@
   function initDeck(){
     deckPos();
     selElement.value='name'; syncInspector();
-    loadQueueFromStorage();  // fixed: ensure queue is initialized
+    loadQueueFromStorage();  // init queue
     applySizes();
-    setDiag('v6.16 — queue fixed, text-size sliders, robust CSV, side-panel scroll.');
+    setDiag('v6.18 — error capture added; queue/storage/render guards in place.');
   }
   initDeck();
 
-  // keep queue persisted
-  window.addEventListener('beforeunload', ()=> localStorage.setItem('soa_queue_v616', JSON.stringify(state.queue)));
+  // keep queue persisted on unload
+  window.addEventListener('beforeunload', ()=> lsSet(QUEUE_KEY, JSON.stringify(state.queue)));
   </script>
 </body>
 </html>
