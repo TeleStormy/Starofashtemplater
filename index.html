@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater (Classic Layout v6.11)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.13)</title>
 <style>
   :root{
     --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
@@ -21,7 +21,7 @@
     color:var(--text);
     font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
   }
-  .app{display:grid;grid-template-columns:300px 1fr 340px;grid-template-rows:56px 1fr;gap:12px;height:100%;padding:12px}
+  .app{display:grid;grid-template-columns:300px 1fr 360px;grid-template-rows:56px 1fr;gap:12px;height:100%;padding:12px}
   header{grid-column:1/4;display:flex;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:10px 14px}
   header h1{font-size:16px;margin:0;letter-spacing:.4px;font-weight:600}
   header .tag{padding:4px 8px;border-radius:999px;font-size:12px;background:rgba(255,255,255,.06);border:1px solid var(--border)}
@@ -29,7 +29,7 @@
   .left,.right{padding:12px;display:flex;flex-direction:column;gap:12px}
   .section{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:10px}
   .section h3{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:600}
-  .row{display:flex;gap:8px;align-items:center}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .row + .row{margin-top:8px}
   label{font-size:12px;color:var(--muted)}
   input[type="text"],input[type="number"],select{
@@ -71,32 +71,35 @@
   /* frame template overlay — stretched to card */
   .frame-template{
     position:absolute;top:0;left:0;width:100%;height:100%;
-    object-fit:fill;pointer-events:none;opacity:.95;z-index:5;
+    object-fit:fill;pointer-events:none;opacity:.95;z-index:6; /* text sits above this */
   }
 
-  /* text */
+  /* text (forced top layer) */
   .name{
     position:absolute;left:89px;top:204px;right:24px;
-    font-weight:800;font-size:34px;letter-spacing:.4px
+    font-weight:800;font-size:34px;letter-spacing:.4px; z-index:1200;
   }
   .type-line{
     position:absolute;left:90px;top:239px;right:24px;
-    color:#fff;font-size:20px;opacity:.95
+    color:#fff;font-size:20px;opacity:.95; z-index:1200;
   }
   .rules{
     position:absolute;left:238px;top:703px;right:24px;min-height:150px;
-    font-size:15px;line-height:1.4;background:rgba(255,255,255,.03);padding:12px 14px;
+    font-size:16px;line-height:1.45;background:rgba(255,255,255,.03);padding:12px 14px;
     border-radius:10px;border:1px solid var(--border);
-    white-space:normal;overflow-wrap:anywhere;word-wrap:break-word
+    white-space:normal;overflow-wrap:anywhere;word-wrap:break-word; z-index:1200;
   }
-  .flavor{position:absolute;left:24px;right:24px;bottom:24px;font-size:12px;color:#c8c3bd;font-style:italic}
+  .flavor{
+    position:absolute;left:24px;right:24px;bottom:24px;
+    font-size:12px;color:#c8c3bd;font-style:italic; z-index:1200;
+  }
 
-  /* badges */
+  /* badges (also top layer) */
   .badges{position:absolute;display:flex;gap:8px;z-index:1200;pointer-events:auto}
   .badge{
     min-width:52px;height:52px;border-radius:999px;background:rgba(0,0,0,.35);
     border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
-    font-weight:800;font-size:18px;padding:0 10px
+    font-weight:800;font-size:20px;padding:0 10px
   }
   /* COST badge group */
   .cost{position:absolute;left:48px;top:49px;z-index:1200;display:flex;align-items:center;justify-content:center}
@@ -116,12 +119,18 @@
   .hint{font-size:12px;color:var(--muted)}
   .pill{border:1px solid var(--border);padding:2px 8px;border-radius:999px;font-size:11px;color:var(--muted)}
   .sheet-preview{width:100%;aspect-ratio:1/1;background:#0d0d10;border:1px dashed #2b2b30;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)}
+
+  /* queue thumbs */
+  .queue-thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .queue-thumbs .thumb{position:relative;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .queue-thumbs img{width:100%;height:100%;display:block;object-fit:cover;aspect-ratio:3/4}
+  .queue-thumbs button{position:absolute;top:4px;right:4px;font-size:10px;padding:2px 6px}
 </style>
 </head>
 <body>
   <div class="app">
     <header>
-      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.11</span></h1>
+      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.13</span></h1>
       <div class="toolbar">
         <button id="btn-export-png" class="primary">Export PNG</button>
         <button id="btn-save-layout" title="Save your current field positions to localStorage">Save Layout</button>
@@ -183,6 +192,23 @@
           <label>MOV</label><input id="fldMOV" type="number" value="1">
           <label>COST</label><input id="fldCOST" type="number" value="1">
         </div>
+      </div>
+
+      <div class="section">
+        <h3>Card Queue</h3>
+        <div class="row">
+          <button id="btn-queue" class="ok" title="Hotkey: Q">Add Current to Queue</button>
+          <button id="btn-clear-queue" class="danger">Clear Queue</button>
+          <span id="queueCount" class="pill">0 queued</span>
+        </div>
+        <div class="row">
+          <button id="btn-save-queue">Save Queue</button>
+          <button id="btn-load-queue">Load Queue</button>
+          <button id="btn-export-queue">Export Queue JSON</button>
+          <input type="file" id="importQueue" accept="application/json">
+        </div>
+        <div id="queueThumbs" class="queue-thumbs"></div>
+        <div class="row hint">Queue snapshots preserve exactly what you see. Auto-saves; manual Save/Load restores from localStorage.</div>
       </div>
 
       <div class="section">
@@ -281,8 +307,12 @@
         </div>
         <div class="row"><label>Start @ row</label><input id="sheetStart" type="number" value="0"> <label>Count</label><input id="sheetCount" type="number" value="70"></div>
         <div class="row"><label>Filename</label><input id="sheetName" type="text" value="SoA_TTS_10x7"></div>
+        <div class="row" style="align-items:center">
+          <label class="pill">Use Queue (if any)</label><input id="useQueue" type="checkbox" checked>
+        </div>
         <div class="row"><button id="buildSheet" class="primary">Build TTS Sheet (PNG)</button></div>
         <div class="sheet-preview" id="sheetPreview">Sheet preview ready</div>
+        <div class="row small muted">If the queue is empty or “Use Queue” is off, it builds from CSV.</div>
       </div>
 
       <div class="section">
@@ -306,7 +336,8 @@
     images: new Map(),
     guides: false,
     art: { x:0, y:0, scale:1, pad:0 },
-    frameUrl: null
+    frameUrl: null,
+    queue: [] // {dataUrl, name}
   };
 
   const q = sel => document.querySelector(sel);
@@ -521,11 +552,11 @@
   });
   window.addEventListener('mouseup', ()=>{ resizing=false; });
 
-  // keyboard nudge
+  // keyboard nudge + deck keys + queue hotkey
   window.addEventListener('keydown', e=>{
-    // quick deck cycling: [ and ] (doesn't conflict with arrows used for nudging)
     if(e.key === '['){ if(state.csvRows.length){ state.rowIndex = (state.rowIndex - 1 + state.csvRows.length) % state.csvRows.length; applyRow(); } e.preventDefault(); return; }
     if(e.key === ']'){ if(state.csvRows.length){ state.rowIndex = (state.rowIndex + 1) % state.csvRows.length; applyRow(); } e.preventDefault(); return; }
+    if(e.key.toLowerCase() === 'q'){ addCurrentToQueue(); e.preventDefault(); return; }
 
     const el=elements[selElement.value]; if(!el) return;
     const step = e.shiftKey? 10 : 1;
@@ -546,7 +577,7 @@
       name: pick(elements.name), type: pick(elements.type), rules: pick(elements.rules), flavor: pick(elements.flavor),
       bMOV: pick(elements.bMOV), bATK: pick(elements.bATK), bHP: pick(elements.bHP), bCOST: pick(elements.bCOST),
       badges: pick(elements.badges), cost: pick(elements.cost),
-      art: {...state.art}, frame: {opacity: frameTpl.style.opacity || 0.95, z: frameTpl.style.zIndex||5}
+      art: {...state.art}, frame: {opacity: frameTpl.style.opacity || 0.95, z: frameTpl.style.zIndex||6}
     };
   }
   function applyLayout(L){
@@ -556,10 +587,10 @@
     if(L.frame){ frameTpl.style.opacity=L.frame.opacity; frameTpl.style.zIndex=L.frame.z; }
     syncInspector();
   }
-  q('#btn-save-layout').addEventListener('click', ()=>{ localStorage.setItem('soa_layout_v611', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
-  q('#btn-load-layout').addEventListener('click', ()=>{ const raw = localStorage.getItem('soa_layout_v611'); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); deckPos(); });
-  q('#btn-reset-layout').addEventListener('click', ()=>{ ['soa_layout_v611'].forEach(k=>localStorage.removeItem(k)); location.reload(); });
-  q('#btn-export-json').addEventListener('click', ()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v611.json'; a.click(); });
+  q('#btn-save-layout').addEventListener('click', ()=>{ localStorage.setItem('soa_layout_v613', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
+  q('#btn-load-layout').addEventListener('click', ()=>{ const raw = localStorage.getItem('soa_layout_v613'); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); deckPos(); });
+  q('#btn-reset-layout').addEventListener('click', ()=>{ ['soa_layout_v613'].forEach(k=>localStorage.removeItem(k)); location.reload(); });
+  q('#btn-export-json').addEventListener('click', ()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v613.json'; a.click(); });
   q('#importJson').addEventListener('change', ev=>{ const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ try{ applyLayout(JSON.parse(fr.result)); setDiag('Imported layout JSON.'); deckPos(); }catch{ setDiag('Invalid JSON.'); } }; fr.readAsText(f); });
 
   // Prev/Next with wrap-around
@@ -574,7 +605,7 @@
     applyRow();
   });
 
-  // Export PNG
+  // Export PNG of current card
   q('#btn-export-png').addEventListener('click', async ()=>{
     setDiag('Rendering PNG...');
     const dataUrl = await domToPng(stage);
@@ -582,7 +613,46 @@
     setDiag('Exported PNG.');
   });
 
-  // DOM to PNG
+  // ------- Queue logic + persistence -------
+  const QUEUE_KEY = 'soa_queue_v613';
+
+  const queueCount = ()=> q('#queueCount').textContent = `${state.queue.length} queued`;
+
+  function renderQueueThumbs(){
+    const wrap = q('#queueThumbs'); wrap.innerHTML='';
+    state.queue.forEach((item, idx)=>{
+      const d = document.createElement('div'); d.className='thumb';
+      const img = document.createElement('img'); img.src=item.dataUrl; img.alt=item.name||('Card '+(idx+1));
+      const rm = document.createElement('button'); rm.textContent='×'; rm.className='danger';
+      rm.addEventListener('click', ()=>{ state.queue.splice(idx,1); persistQueue(); renderQueueThumbs(); queueCount(); });
+      d.appendChild(img); d.appendChild(rm); wrap.appendChild(d);
+    });
+  }
+
+  function persistQueue(){
+    try{
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(state.queue));
+      setDiag(`Queue saved (${state.queue.length}).`);
+    }catch(e){
+      setDiag('Failed to save queue (storage quota?).');
+    }
+  }
+
+  function loadQueueFromStorage(){
+    const raw = localStorage.getItem(QUEUE_KEY);
+    if(!raw) return false;
+    try{
+      const arr = JSON.parse(raw);
+      if(Array.isArray(arr)) state.queue = arr.filter(x=>x && x.dataUrl);
+      queueCount(); renderQueueThumbs();
+      setDiag(`Queue loaded (${state.queue.length}).`);
+      return true;
+    }catch{
+      setDiag('Saved queue was invalid.');
+      return false;
+    }
+  }
+
   async function domToPng(node){
     const s = new XMLSerializer();
     const clone = node.cloneNode(true);
@@ -599,7 +669,37 @@
     return c.toDataURL('image/png');
   }
 
-  // Sheet builder
+  async function addCurrentToQueue(){
+    const dataUrl = await domToPng(stage);
+    const name = fldName.value || `Card ${state.queue.length+1}`;
+    state.queue.push({dataUrl, name});
+    queueCount(); renderQueueThumbs(); persistQueue();
+    setDiag(`Queued: ${name}`);
+  }
+
+  q('#btn-queue').addEventListener('click', addCurrentToQueue);
+  q('#btn-clear-queue').addEventListener('click', ()=>{ state.queue = []; renderQueueThumbs(); queueCount(); persistQueue(); setDiag('Queue cleared.'); });
+
+  // Manual Save/Load/Export/Import
+  q('#btn-save-queue').addEventListener('click', persistQueue);
+  q('#btn-load-queue').addEventListener('click', ()=>{ loadQueueFromStorage(); });
+  q('#btn-export-queue').addEventListener('click', ()=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(state.queue,null,2)],{type:'application/json'}));
+    a.download='soa_queue_v613.json'; a.click();
+  });
+  q('#importQueue').addEventListener('change', ev=>{
+    const f=ev.target.files[0]; if(!f) return;
+    const fr=new FileReader();
+    fr.onload=()=>{ try{
+      const arr=JSON.parse(fr.result);
+      if(Array.isArray(arr)) { state.queue = arr.filter(x=>x && x.dataUrl); persistQueue(); renderQueueThumbs(); queueCount(); setDiag('Imported queue JSON.'); }
+      else setDiag('Invalid queue JSON.');
+    }catch{ setDiag('Invalid queue JSON.'); } };
+    fr.readAsText(f);
+  });
+
+  // ------- Sheet builder -------
   function applyPreset(val){
     const cols=q('#sheetCols'), rows=q('#sheetRows'), w=q('#sheetW'), h=q('#sheetH'), name=q('#sheetName');
     if(val==='tts10x7'){ cols.value=10; rows.value=7; w.value=4096; h.value=4096; name.value='SoA_TTS_10x7'; }
@@ -607,44 +707,69 @@
     else if(val==='a2_7x5'){ cols.value=7; rows.value=5; w.value=5600; h.value=4000; name.value='SoA_7x5_5600x4000'; }
   }
   q('#sheetPreset').addEventListener('change', e=> applyPreset(e.target.value));
+
   async function renderCardToImage(){ return await domToPng(stage); }
+
   q('#buildSheet').addEventListener('click', async ()=>{
     const cols=+q('#sheetCols').value, rows=+q('#sheetRows').value, W=+q('#sheetW').value, H=+q('#sheetH').value, pad=+q('#sheetPad').value;
-    const start=+q('#sheetStart').value, count=+q('#sheetCount').value; const bg=q('#sheetBG').value; const fname=q('#sheetName').value||'SoA_TTS_Sheet';
+    const start=+q('#sheetStart').value, reqCount=+q('#sheetCount').value; const bg=q('#sheetBG').value; const fname=q('#sheetName').value||'SoA_TTS_Sheet';
     const cellW = Math.floor((W - (cols+1)*pad)/cols), cellH = Math.floor((H - (rows+1)*pad)/rows);
+
+    const useQueue = q('#useQueue').checked && state.queue.length>0;
+
     const sheet=document.createElement('canvas'); sheet.width=W; sheet.height=H; const ctx=sheet.getContext('2d');
     if(bg==='transparent'){ ctx.clearRect(0,0,W,H);} else { ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);}    
-    const savedArt={...state.art};
-    let idx=start, placed=0;
+
+    const saved = { ...state.art, rowIndex: state.rowIndex };
+
+    let placed=0, idx=start;
     for(let r=0;r<rows;r++){
       for(let c=0;c<cols;c++){
-        if(placed>=count || idx>=state.csvRows.length) break;
-        state.rowIndex = idx; applyRow();
-        const dataUrl = await renderCardToImage();
+        if(placed >= reqCount) break;
+
+        let dataUrl=null;
+
+        if(useQueue){
+          if(placed >= state.queue.length) break;
+          dataUrl = state.queue[placed].dataUrl;
+        } else {
+          if(idx >= state.csvRows.length) break;
+          state.rowIndex = idx; applyRow();
+          dataUrl = await renderCardToImage();
+          idx++;
+        }
+
         const img = await new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.src=dataUrl; });
         const x = pad + c*(cellW+pad), y = pad + r*(cellH+pad);
         const scale = Math.min(cellW/img.width, cellH/img.height);
         const drawW = Math.round(img.width*scale), drawH = Math.round(img.height*scale);
         const offX = x + Math.floor((cellW-drawW)/2), offY = y + Math.floor((cellH-drawH)/2);
         ctx.drawImage(img, offX, offY, drawW, drawH);
-        idx++; placed++;
+        placed++;
       }
     }
-    state.art = savedArt; applyArt();
+
+    // Restore state after rendering
+    state.art = { x:saved.x, y:saved.y, scale:saved.scale, pad:saved.pad }; applyArt();
+    state.rowIndex = saved.rowIndex; applyRow();
+
     const out = sheet.toDataURL('image/png');
     const a=document.createElement('a'); a.href=out; a.download=fname+'.png'; a.click();
     q('#sheetPreview').textContent = `Built ${placed} cards → ${fname}.png (${W}×${H})`;
-    setDiag(`Sheet built: ${placed} cards.`);
-    deckPos();
+    setDiag(`Sheet built: ${placed} cards. ${useQueue ? '(from queue)' : '(from CSV)'} `);
   });
 
   // Init
   function initDeck(){
     deckPos();
     selElement.value='name'; syncInspector();
-    setDiag('v6.11 loaded. CSV navigation: wrap-around + counter + hotkeys [ / ].');
+    loadQueueFromStorage(); queueCount(); renderQueueThumbs();
+    setDiag('v6.13 loaded. Text above frame · CSV wrap nav · Queue with persistence (auto+manual).');
   }
   initDeck();
+
+  // Auto-persist queue on unload (extra safety)
+  window.addEventListener('beforeunload', persistQueue);
   </script>
 </body>
 </html>
