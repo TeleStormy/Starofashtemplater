@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater (Classic Layout v6.13)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.14)</title>
 <style>
   :root{
     --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
@@ -21,12 +21,12 @@
     color:var(--text);
     font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
   }
-  .app{display:grid;grid-template-columns:300px 1fr 360px;grid-template-rows:56px 1fr;gap:12px;height:100%;padding:12px}
+  .app{display:grid;grid-template-columns:300px 1fr 360px;grid-template-rows:56px 1fr;gap:12px;height:100vh;padding:12px}
   header{grid-column:1/4;display:flex;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:10px 14px}
   header h1{font-size:16px;margin:0;letter-spacing:.4px;font-weight:600}
   header .tag{padding:4px 8px;border-radius:999px;font-size:12px;background:rgba(255,255,255,.06);border:1px solid var(--border)}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-  .left,.right{padding:12px;display:flex;flex-direction:column;gap:12px}
+  .left,.right{padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto} /* scrollable side panels */
   .section{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:10px}
   .section h3{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:600}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -130,7 +130,7 @@
 <body>
   <div class="app">
     <header>
-      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.13</span></h1>
+      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.14</span></h1>
       <div class="toolbar">
         <button id="btn-export-png" class="primary">Export PNG</button>
         <button id="btn-save-layout" title="Save your current field positions to localStorage">Save Layout</button>
@@ -201,14 +201,8 @@
           <button id="btn-clear-queue" class="danger">Clear Queue</button>
           <span id="queueCount" class="pill">0 queued</span>
         </div>
-        <div class="row">
-          <button id="btn-save-queue">Save Queue</button>
-          <button id="btn-load-queue">Load Queue</button>
-          <button id="btn-export-queue">Export Queue JSON</button>
-          <input type="file" id="importQueue" accept="application/json">
-        </div>
         <div id="queueThumbs" class="queue-thumbs"></div>
-        <div class="row hint">Queue snapshots preserve exactly what you see. Auto-saves; manual Save/Load restores from localStorage.</div>
+        <div class="row hint">Queue snapshots preserve exactly what you see. Auto-saves to localStorage.</div>
       </div>
 
       <div class="section">
@@ -378,35 +372,63 @@
     if(el) el.textContent = `${(state.rowIndex+1)} / ${(state.csvRows.length||0)}`;
   };
 
+  /* ---------- Helpers ---------- */
   function normalizeKey(s){return String(s||'').toLowerCase().replace(/\.[^.]+$/,'').replace(/[^a-z0-9]/g,'');}
 
-  // CSV (safe)
-  function detectDelimiter(firstLine){
-    const counts = { ',':(firstLine.match(/,/g)||[]).length, ';':(firstLine.match(/;/g)||[]).length, '\t':(firstLine.match(/\t/g)||[]).length };
-    return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0] || ',';
-  }
-  function splitCSVLine(line, delim){
-    const out=[]; let cur=''; let inQ=false;
-    for(let i=0;i<line.length;i++){
-      const ch=line[i];
-      if(ch==='\"'){ if(inQ && line[i+1]==='\"'){ cur+='\"'; i++; } else { inQ=!inQ; } }
-      else if(ch===delim && !inQ){ out.push(cur); cur=''; }
-      else{ cur+=ch; }
-    }
-    out.push(cur); return out;
-  }
+  // robust CSV parser: handles quoted commas & newlines, auto delimiter
   function parseCSV(text){
-    text = String(text).replace(/^\uFEFF/, '').replace(/\r/g,'');
-    const lines = text.split('\n').filter(l=>l.length);
-    if(!lines.length) return [];
-    const d = detectDelimiter(lines[0]);
-    const headers = splitCSVLine(lines.shift(), d).map(h=>h.trim());
-    return lines.map(line=>{
-      const cells = splitCSVLine(line, d);
-      const row={}; headers.forEach((h,i)=> row[h] = (cells[i]??'').trim());
-      return row;
+    text = String(text).replace(/^\uFEFF/, '');
+    // find first real newline (not inside quotes) to detect delimiter
+    let headerEnd=0, inQ=false;
+    for(let i=0;i<text.length;i++){
+      const ch=text[i];
+      if(ch==='\"'){ if(inQ && text[i+1]==='\"'){ i++; } else { inQ=!inQ; } }
+      else if((ch==='\n' || ch==='\r') && !inQ){ headerEnd=i; break; }
+    }
+    const headerLine = text.slice(0, headerEnd || text.indexOf('\n') || text.length);
+    const counts = { ',':(headerLine.match(/,/g)||[]).length, ';':(headerLine.match(/;/g)||[]).length, '\t':(headerLine.match(/\t/g)||[]).length };
+    const delim = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0] || ',';
+
+    const rows=[]; let row=[], cell=''; inQ=false;
+    for(let i=0;i<text.length;i++){
+      let ch=text[i];
+      if(ch==='\"'){
+        if(inQ && text[i+1]==='\"'){ cell+='\"'; i++; } else { inQ=!inQ; }
+      } else if(ch===delim && !inQ){
+        row.push(cell); cell='';
+      } else if((ch==='\n') && !inQ){
+        row.push(cell); rows.push(row); row=[]; cell='';
+      } else if(ch==='\r'){
+        // swallow CR (CRLF handled by \n)
+      } else {
+        cell+=ch;
+      }
+    }
+    row.push(cell); rows.push(row);
+
+    const headers = (rows.shift()||[]).map(h=>String(h).trim());
+    const out = rows
+      .map(r=>r.map(c=>String(c).trim()))
+      .filter(r=>r.some(v=>v.length));
+    return out.map(r=>{
+      const o={}; headers.forEach((h,i)=>o[h]=r[i]??''); return o;
     });
   }
+
+  // get field by fuzzy, case-insensitive header match
+  function pickFuzzy(row, candidates){
+    // normalized header map
+    const map={}; Object.keys(row).forEach(k=> map[normalizeKey(k)] = row[k]);
+    for(const name of candidates){
+      const key=normalizeKey(name);
+      if(map[key]!==undefined && String(map[key]).trim()!=='') return map[key];
+    }
+    // fallback: look for substring matches (e.g., "rules text", "card rules")
+    for(const k in map){ for(const name of candidates){ if(k.includes(normalizeKey(name)) && String(map[k]).trim()!=='') return map[k]; } }
+    return '';
+  }
+
+  /* ---------- CSV / Images ---------- */
   q('#btn-load-csv').addEventListener('click',()=> q('#csvFile').click());
   q('#csvFile').addEventListener('change', ev=>{
     const f = ev.target.files[0]; if(!f) return;
@@ -420,7 +442,6 @@
     fr.readAsText(f);
   });
 
-  // Images
   q('#imgFiles').addEventListener('change', ev=>{
     const files = Array.from(ev.target.files||[]);
     let added=0;
@@ -434,7 +455,7 @@
     setDiag(`Imported ${added} images.`); applyRow();
   });
 
-  // Frame
+  /* ---------- Frame ---------- */
   q('#frameFile').addEventListener('change', ev=>{
     const f = ev.target.files[0]; if(!f) return;
     const url = URL.createObjectURL(f);
@@ -448,23 +469,24 @@
     artBox.style.zIndex = above? 4 : 6;
   });
 
-  // Row apply
-  const pick=(obj,keys)=>{ for(const k of keys){ if(obj && obj[k]!==undefined && String(obj[k]).trim()!=='') return obj[k]; } return ''; };
+  /* ---------- Apply CSV row ---------- */
   function applyRow(){
     const r = state.csvRows[state.rowIndex] || null;
     if(r){
-      fldName.value = pick(r,['Name','Card Name','CardName','name']) || fldName.value;
-      fldType.value = pick(r,['Type','CardType','type']) || fldType.value;
-      fldRules.value = pick(r,['Rules','RulesText','rules','Text']) || fldRules.value;
-      fldFlavor.value= pick(r,['Flavor','FlavorText','flavor']) || fldFlavor.value;
-      const faction=(pick(r,['Faction','faction'])||'ash').toLowerCase();
-      fldFaction.value = ['flame','blood','ash'].includes(faction)? faction : 'ash';
-      fldATK.value = pick(r,['ATK','Attack','atk']) || fldATK.value;
-      fldHP.value  = pick(r,['HP','Health','hp']) || fldHP.value;
-      fldMOV.value = pick(r,['MOV','Move','Movement','mov']) || fldMOV.value;
-      fldCOST.value= pick(r,['Cost','COST','cost']) || fldCOST.value;
+      fldName.value  = pickFuzzy(r,['Name','Card Name','CardName','name']) || fldName.value;
+      fldType.value  = pickFuzzy(r,['Type','CardType','Subtype','Type Line','type']) || fldType.value;
+      fldRules.value = pickFuzzy(r,['Rules','Rules Text','Card Rules','Text','Ability','Abilities','Effect','Description']) || fldRules.value;
+      fldFlavor.value= pickFuzzy(r,['Flavor','Flavor Text','flavor']) || fldFlavor.value;
 
-      const artKeyRaw = pick(r,['Art','Artwork','Image','ArtFile']) || fldName.value || '';
+      const faction=(pickFuzzy(r,['Faction','Affinity','Element','faction'])||'ash').toLowerCase();
+      fldFaction.value = ['flame','blood','ash'].includes(faction)? faction : 'ash';
+
+      fldATK.value  = pickFuzzy(r,['ATK','Attack','Power','atk']) || fldATK.value;
+      fldHP.value   = pickFuzzy(r,['HP','Health','hp']) || fldHP.value;
+      fldMOV.value  = pickFuzzy(r,['MOV','Move','Movement','Speed','mov']) || fldMOV.value;
+      fldCOST.value = pickFuzzy(r,['Cost','COST','Mana','Energy','Resource','Points','cost']) || fldCOST.value;
+
+      const artKeyRaw = pickFuzzy(r,['Art','Artwork','Image','ArtFile','Art File','Picture','Filename']) || fldName.value || '';
       const variants = [ String(artKeyRaw).toLowerCase().replace(/\.[^.]+$/,''), normalizeKey(artKeyRaw) ];
       let hit=null; for(const v of variants){ if(state.images.has(v)){ hit=state.images.get(v); break; } }
       if(hit){ art.src=hit; setDiag('Matched art: '+artKeyRaw); } else { art.removeAttribute('src'); }
@@ -473,18 +495,22 @@
     deckPos();
   }
 
+  /* ---------- Render ---------- */
   function renderFields(){
-    q('#name').textContent = fldName.value || 'Name';
-    q('#type').textContent = fldType.value || 'Type — Subtype';
+    q('#name').textContent  = fldName.value || 'Name';
+    q('#type').textContent  = fldType.value || 'Type — Subtype';
     q('#rules').textContent = fldRules.value || 'Rules text...';
-    q('#flavor').textContent = fldFlavor.value || '“Flavor text...”';
-    bATK.textContent = fldATK.value; bHP.textContent = fldHP.value; bMOV.textContent = fldMOV.value; bCOST.textContent=fldCOST.value;
+    q('#flavor').textContent= fldFlavor.value || '“Flavor text...”';
+    bATK.textContent = fldATK.value;
+    bHP.textContent  = fldHP.value;
+    bMOV.textContent = fldMOV.value;
+    bCOST.textContent= fldCOST.value;
   }
   function renderFaction(){ q('#factionBorder').className = 'faction-border '+fldFaction.value; }
   [fldName,fldType,fldRules,fldFlavor,fldATK,fldHP,fldMOV,fldCOST].forEach(el=> el.addEventListener('input', renderFields));
   fldFaction.addEventListener('change', renderFaction);
 
-  // Art transforms
+  /* ---------- Art transforms ---------- */
   function applyArt(){
     const pad = state.art.pad;
     art.style.left = `calc(50% + ${state.art.x}px)`;
@@ -503,7 +529,7 @@
   window.addEventListener('mousemove', e=>{ if(!draggingArt) return; const dx=e.clientX-startX, dy=e.clientY-startY; state.art.x=sX+dx; state.art.y=sY+dy; artX.value=state.art.x; artY.value=state.art.y; applyArt(); });
   window.addEventListener('mouseup', ()=> draggingArt=false);
 
-  // Layout editing (move + resize)
+  /* ---------- Layout editing ---------- */
   const elements = {
     name:q('#name'), type:q('#type'), rules:q('#rules'), flavor:q('#flavor'),
     bMOV, bATK, bHP, bCOST, badges, cost:costGroup
@@ -525,18 +551,15 @@
   }
   function applyBoxTo(el){ el.style.left = posX.value+'px'; el.style.top = posY.value+'px'; el.style.width= posW.value+'px'; el.style.height=posH.value+'px'; }
 
-  // click to select
   Object.entries(elements).forEach(([key,el])=>{ if(!el) return; el.addEventListener('mousedown', (e)=>{ selElement.value=key; syncInspector(); e.preventDefault(); }); });
   selElement.addEventListener('change', syncInspector);
   q('#applyLayout').addEventListener('click', ()=>{ const el=elements[selElement.value]; if(!el) return; applyBoxTo(el); syncInspector(); setDiag('Applied layout to '+selElement.value); });
 
-  // drag overlay
   let draggingSel=false, selStart={x:0,y:0}, base={x:0,y:0};
   selEdit.addEventListener('mousedown', e=>{ if(e.target.classList.contains('corner')) return; draggingSel=true; selStart={x:e.clientX,y:e.clientY}; const el=elements[selElement.value]; const b=boundsInStage(el); base={x:b.x,y:b.y}; e.preventDefault(); });
   window.addEventListener('mousemove', e=>{ if(!draggingSel) return; const dx=e.clientX-selStart.x, dy=e.clientY-selStart.y; posX.value=Math.round(base.x+dx); posY.value=Math.round(base.y+dy); const el=elements[selElement.value]; applyBoxTo(el); syncInspector(); });
   window.addEventListener('mouseup', ()=> draggingSel=false);
 
-  // corner resize
   let resizing=false, which=null, b0={x:0,y:0,w:0,h:0}, start={x:0,y:0};
   function cornerDown(e){ which=e.target.getAttribute('data-corner'); const el=elements[selElement.value]; const b=boundsInStage(el); b0=b; start={x:e.clientX,y:e.clientY}; resizing=true; e.preventDefault(); e.stopPropagation(); }
   selEdit.querySelectorAll('.corner').forEach(c=> c.addEventListener('mousedown', cornerDown));
@@ -552,7 +575,7 @@
   });
   window.addEventListener('mouseup', ()=>{ resizing=false; });
 
-  // keyboard nudge + deck keys + queue hotkey
+  // keyboard nudge + deck wrap + queue hotkey
   window.addEventListener('keydown', e=>{
     if(e.key === '['){ if(state.csvRows.length){ state.rowIndex = (state.rowIndex - 1 + state.csvRows.length) % state.csvRows.length; applyRow(); } e.preventDefault(); return; }
     if(e.key === ']'){ if(state.csvRows.length){ state.rowIndex = (state.rowIndex + 1) % state.csvRows.length; applyRow(); } e.preventDefault(); return; }
@@ -570,7 +593,7 @@
 
   q('#toggleGuides').addEventListener('click', ()=>{ state.guides=!state.guides; stage.style.outline=state.guides?'1px dashed #333':'none'; setDiag('Guides '+(state.guides?'on':'off')); });
 
-  // Save/Load Layout
+  /* ---------- Save/Load Layout ---------- */
   function captureLayout(){
     const pick=(el)=>({left:el.style.left||el.offsetLeft+'px', top:el.style.top||el.offsetTop+'px', width:el.style.width||el.offsetWidth+'px', height:el.style.height||el.offsetHeight+'px'});
     return {
@@ -587,13 +610,13 @@
     if(L.frame){ frameTpl.style.opacity=L.frame.opacity; frameTpl.style.zIndex=L.frame.z; }
     syncInspector();
   }
-  q('#btn-save-layout').addEventListener('click', ()=>{ localStorage.setItem('soa_layout_v613', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
-  q('#btn-load-layout').addEventListener('click', ()=>{ const raw = localStorage.getItem('soa_layout_v613'); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); deckPos(); });
-  q('#btn-reset-layout').addEventListener('click', ()=>{ ['soa_layout_v613'].forEach(k=>localStorage.removeItem(k)); location.reload(); });
-  q('#btn-export-json').addEventListener('click', ()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v613.json'; a.click(); });
+  q('#btn-save-layout').addEventListener('click', ()=>{ localStorage.setItem('soa_layout_v614', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
+  q('#btn-load-layout').addEventListener('click', ()=>{ const raw = localStorage.getItem('soa_layout_v614'); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); deckPos(); });
+  q('#btn-reset-layout').addEventListener('click', ()=>{ ['soa_layout_v614'].forEach(k=>localStorage.removeItem(k)); location.reload(); });
+  q('#btn-export-json').addEventListener('click', ()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v614.json'; a.click(); });
   q('#importJson').addEventListener('change', ev=>{ const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ try{ applyLayout(JSON.parse(fr.result)); setDiag('Imported layout JSON.'); deckPos(); }catch{ setDiag('Invalid JSON.'); } }; fr.readAsText(f); });
 
-  // Prev/Next with wrap-around
+  /* ---------- Prev/Next ---------- */
   q('#prev').addEventListener('click', ()=>{
     if(!state.csvRows.length) return;
     state.rowIndex = (state.rowIndex - 1 + state.csvRows.length) % state.csvRows.length;
@@ -605,7 +628,7 @@
     applyRow();
   });
 
-  // Export PNG of current card
+  /* ---------- PNG Export ---------- */
   q('#btn-export-png').addEventListener('click', async ()=>{
     setDiag('Rendering PNG...');
     const dataUrl = await domToPng(stage);
@@ -613,46 +636,28 @@
     setDiag('Exported PNG.');
   });
 
-  // ------- Queue logic + persistence -------
-  const QUEUE_KEY = 'soa_queue_v613';
-
+  /* ---------- Queue (auto-save) ---------- */
+  const QUEUE_KEY = 'soa_queue_v614';
   const queueCount = ()=> q('#queueCount').textContent = `${state.queue.length} queued`;
-
   function renderQueueThumbs(){
     const wrap = q('#queueThumbs'); wrap.innerHTML='';
     state.queue.forEach((item, idx)=>{
       const d = document.createElement('div'); d.className='thumb';
       const img = document.createElement('img'); img.src=item.dataUrl; img.alt=item.name||('Card '+(idx+1));
       const rm = document.createElement('button'); rm.textContent='×'; rm.className='danger';
-      rm.addEventListener('click', ()=>{ state.queue.splice(idx,1); persistQueue(); renderQueueThumbs(); queueCount(); });
+      rm.addEventListener('click', ()=>{ state.queue.splice(idx,1); localStorage.setItem(QUEUE_KEY, JSON.stringify(state.queue)); renderQueueThumbs(); queueCount(); });
       d.appendChild(img); d.appendChild(rm); wrap.appendChild(d);
     });
   }
-
-  function persistQueue(){
-    try{
-      localStorage.setItem(QUEUE_KEY, JSON.stringify(state.queue));
-      setDiag(`Queue saved (${state.queue.length}).`);
-    }catch(e){
-      setDiag('Failed to save queue (storage quota?).');
-    }
-  }
-
   function loadQueueFromStorage(){
     const raw = localStorage.getItem(QUEUE_KEY);
-    if(!raw) return false;
+    if(!raw) return;
     try{
       const arr = JSON.parse(raw);
       if(Array.isArray(arr)) state.queue = arr.filter(x=>x && x.dataUrl);
       queueCount(); renderQueueThumbs();
-      setDiag(`Queue loaded (${state.queue.length}).`);
-      return true;
-    }catch{
-      setDiag('Saved queue was invalid.');
-      return false;
-    }
+    }catch{}
   }
-
   async function domToPng(node){
     const s = new XMLSerializer();
     const clone = node.cloneNode(true);
@@ -668,38 +673,18 @@
     ctx.clearRect(0,0,w,h); ctx.drawImage(img,0,0);
     return c.toDataURL('image/png');
   }
-
   async function addCurrentToQueue(){
     const dataUrl = await domToPng(stage);
     const name = fldName.value || `Card ${state.queue.length+1}`;
     state.queue.push({dataUrl, name});
-    queueCount(); renderQueueThumbs(); persistQueue();
+    queueCount(); renderQueueThumbs();
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(state.queue));
     setDiag(`Queued: ${name}`);
   }
-
   q('#btn-queue').addEventListener('click', addCurrentToQueue);
-  q('#btn-clear-queue').addEventListener('click', ()=>{ state.queue = []; renderQueueThumbs(); queueCount(); persistQueue(); setDiag('Queue cleared.'); });
+  q('#btn-clear-queue').addEventListener('click', ()=>{ state.queue = []; renderQueueThumbs(); queueCount(); localStorage.setItem(QUEUE_KEY, JSON.stringify(state.queue)); setDiag('Queue cleared.'); });
 
-  // Manual Save/Load/Export/Import
-  q('#btn-save-queue').addEventListener('click', persistQueue);
-  q('#btn-load-queue').addEventListener('click', ()=>{ loadQueueFromStorage(); });
-  q('#btn-export-queue').addEventListener('click', ()=>{
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(new Blob([JSON.stringify(state.queue,null,2)],{type:'application/json'}));
-    a.download='soa_queue_v613.json'; a.click();
-  });
-  q('#importQueue').addEventListener('change', ev=>{
-    const f=ev.target.files[0]; if(!f) return;
-    const fr=new FileReader();
-    fr.onload=()=>{ try{
-      const arr=JSON.parse(fr.result);
-      if(Array.isArray(arr)) { state.queue = arr.filter(x=>x && x.dataUrl); persistQueue(); renderQueueThumbs(); queueCount(); setDiag('Imported queue JSON.'); }
-      else setDiag('Invalid queue JSON.');
-    }catch{ setDiag('Invalid queue JSON.'); } };
-    fr.readAsText(f);
-  });
-
-  // ------- Sheet builder -------
+  /* ---------- Sheet builder ---------- */
   function applyPreset(val){
     const cols=q('#sheetCols'), rows=q('#sheetRows'), w=q('#sheetW'), h=q('#sheetH'), name=q('#sheetName');
     if(val==='tts10x7'){ cols.value=10; rows.value=7; w.value=4096; h.value=4096; name.value='SoA_TTS_10x7'; }
@@ -707,7 +692,6 @@
     else if(val==='a2_7x5'){ cols.value=7; rows.value=5; w.value=5600; h.value=4000; name.value='SoA_7x5_5600x4000'; }
   }
   q('#sheetPreset').addEventListener('change', e=> applyPreset(e.target.value));
-
   async function renderCardToImage(){ return await domToPng(stage); }
 
   q('#buildSheet').addEventListener('click', async ()=>{
@@ -759,17 +743,16 @@
     setDiag(`Sheet built: ${placed} cards. ${useQueue ? '(from queue)' : '(from CSV)'} `);
   });
 
-  // Init
+  /* ---------- Init ---------- */
   function initDeck(){
     deckPos();
     selElement.value='name'; syncInspector();
-    loadQueueFromStorage(); queueCount(); renderQueueThumbs();
-    setDiag('v6.13 loaded. Text above frame · CSV wrap nav · Queue with persistence (auto+manual).');
+    loadQueueFromStorage();
+    setDiag('v6.14 — robust CSV + fuzzy columns + side-panel scroll. Rules should now import and render.');
   }
   initDeck();
 
-  // Auto-persist queue on unload (extra safety)
-  window.addEventListener('beforeunload', persistQueue);
+  window.addEventListener('beforeunload', ()=> localStorage.setItem('soa_queue_v614', JSON.stringify(state.queue)));
   </script>
 </body>
 </html>
