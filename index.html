@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Star of Ash — Card Templater (Classic Layout v6.25)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.26)</title>
 <style>
   :root{--bg:#0b0b0c;--panel:#151517;--panel-2:#1b1b1f;--text:#eae7e4;--muted:#aaa6a2;--accent:#c0392b;--ash:#2b2b30;--blood:#8a1d1d;--flame:#b8571b;--border:#2b2b30;--ok:#57d38a;--warn:#ffb84d;--bad:#ff6b6b;}
   *{box-sizing:border-box} html,body{height:100%}
@@ -73,7 +73,7 @@
 <body>
 <div class="app">
   <header>
-    <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.25</span></h1>
+    <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.26</span></h1>
     <div class="toolbar">
       <button id="btn-export-png" class="primary">Export PNG</button>
       <button id="btn-inline" title="Force-convert all stage images to data: URLs">Inline Now</button>
@@ -416,10 +416,10 @@ function sizeApply(){q('#name').style.fontSize=state.sizes.name+'px'; q('#type')
 /* ---------- Save/Load Layout ---------- */
 function capture(){const pick=el=>({left:el.style.left||el.offsetLeft+'px',top:el.style.top||el.offsetTop+'px',width:el.style.width||el.offsetWidth+'px',height:el.style.height||el.offsetHeight+'px'}); return {name:pick(q('#name')),type:pick(q('#type')),rules:pick(q('#rules')),flavor:pick(q('#flavor')),bMOV:pick(q('#bMOV')),bATK:pick(q('#bATK')),bHP:pick(q('#bHP')),bCOST:pick(q('#bCOST')),cost:pick(q('#cost')),art:{...state.art},sizes:{...state.sizes}}}
 function applyLayout(L){if(!L)return;['name','type','rules','flavor','bMOV','bATK','bHP','bCOST','cost'].forEach(k=>{const d=L[k],el=q('#'+k);if(!d||!el)return;el.style.left=d.left;el.style.top=d.top;el.style.width=d.width;el.style.height=d.height}); state.art=L.art||state.art; if(L.sizes) state.sizes={...state.sizes,...L.sizes}; sizeApply(); q('#artX').value=state.art.x;q('#artY').value=state.art.y;q('#artScale').value=state.art.scale*100;q('#artPad').value=state.art.pad; applyArt();}
-q('#btn-save-layout').addEventListener('click',()=>{lsSet('soa_layout_v625',JSON.stringify(capture()));setDiag('Layout saved.')});
-q('#btn-load-layout').addEventListener('click',()=>{const raw=lsGet('soa_layout_v625',null); if(!raw){setDiag('No saved layout.');return} applyLayout(JSON.parse(raw)); setDiag('Layout loaded.')});
-q('#btn-reset-layout').addEventListener('click',()=>{try{localStorage.removeItem('soa_layout_v625')}catch{} location.reload()});
-q('#btn-export-json').addEventListener('click',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(capture(),null,2)],{type:'application/json'}));a.download='soa_layout_v625.json';a.click()});
+q('#btn-save-layout').addEventListener('click',()=>{lsSet('soa_layout_v626',JSON.stringify(capture()));setDiag('Layout saved.')});
+q('#btn-load-layout').addEventListener('click',()=>{const raw=lsGet('soa_layout_v626',null); if(!raw){setDiag('No saved layout.');return} applyLayout(JSON.parse(raw)); setDiag('Layout loaded.')});
+q('#btn-reset-layout').addEventListener('click',()=>{try{localStorage.removeItem('soa_layout_v626')}catch{} location.reload()});
+q('#btn-export-json').addEventListener('click',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(capture(),null,2)],{type:'application/json'}));a.download='soa_layout_v626.json';a.click()});
 q('#importJson').addEventListener('change',ev=>{const f=ev.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{try{applyLayout(JSON.parse(fr.result));setDiag('Imported layout JSON.')}catch{setDiag('Invalid JSON.')}};fr.readAsText(f)});
 
 /* ---------- INLINE helpers ---------- */
@@ -453,24 +453,45 @@ q('#btn-render-check').addEventListener('click',()=>{
   setDiag('Render Check: '+(lines.join(' | ')||'no images'));
 });
 
-/* ---------- DOM -> PNG (clone AFTER inline) ---------- */
+/* ---------- DOM -> PNG (robust) ---------- */
+function collectInlineCSS(){
+  // gather all <style> tags' CSS (no external <link> on file://)
+  return [...document.querySelectorAll('style')].map(s=>s.textContent||'').join('\n');
+}
 async function domToPng(node){
-  await inlineStageImages(); // ensure data: in live DOM
+  await inlineStageImages(); // ensure data URLs in the live DOM
 
-  const clone=node.cloneNode(true);
+  const w = node.offsetWidth, h = node.offsetHeight;
+
+  // Deep clone and fix sizing/margins so layout inside foreignObject is identical
+  const clone = node.cloneNode(true);
   clone.querySelector('#selEdit')?.remove();
+  clone.style.width  = w + 'px';
+  clone.style.height = h + 'px';
+  clone.style.margin = '0';
 
-  const xml=new XMLSerializer().serializeToString(clone);
-  const w=node.offsetWidth, h=node.offsetHeight;
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-               <foreignObject width="100%" height="100%">${xml}</foreignObject>
-             </svg>`;
-  const svgBlob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'});
-  const svgUrl=URL.createObjectURL(svgBlob);
+  const css = collectInlineCSS();
+
+  // Important: wrap in proper XHTML container for Firefox
+  const xhtml = `<div xmlns="http://www.w3.org/1999/xhtml">
+    <style>${css}</style>
+    ${clone.outerHTML}
+  </div>`;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+    <foreignObject width="${w}" height="${h}">${xhtml}</foreignObject>
+  </svg>`;
+
+  const svgBlob = new Blob([svg], {type:'image/svg+xml;charset=utf-8'});
+  const svgUrl  = URL.createObjectURL(svgBlob);
+
   const img=new Image(); img.crossOrigin='anonymous';
   await new Promise(res=>{img.onload=res; img.src=svgUrl;});
-  const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d');
-  ctx.clearRect(0,0,w,h); ctx.drawImage(img,0,0);
+
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,w,h);
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality='high';
+  ctx.drawImage(img,0,0,w,h);
   return c.toDataURL('image/png');
 }
 
@@ -484,7 +505,7 @@ q('#btn-export-png').addEventListener('click',async ()=>{
   }catch(e){ setDiag('Export failed: '+(e.message||e)) }
 });
 
-const QUEUE_KEY='soa_queue_v625';
+const QUEUE_KEY='soa_queue_v626';
 function renderQueue(){const wrap=q('#queueThumbs');wrap.innerHTML='';state.queue.forEach((it,i)=>{const d=document.createElement('div');d.className='thumb';const img=document.createElement('img');img.src=it.dataUrl;const rm=document.createElement('button');rm.textContent='×';rm.className='danger';rm.addEventListener('click',()=>{state.queue.splice(i,1);lsSet(QUEUE_KEY,JSON.stringify(state.queue));renderQueue();queueCount()});d.appendChild(img);d.appendChild(rm);wrap.appendChild(d)})}
 function loadQueue(){try{const arr=JSON.parse(lsGet(QUEUE_KEY,'[]')); if(Array.isArray(arr)) state.queue=arr.filter(x=>x&&x.dataUrl)}catch{} queueCount(); renderQueue();}
 function queueCount(){q('#queueCount').textContent=`${state.queue.length} queued`; }
@@ -555,7 +576,7 @@ q('#buildSheet').addEventListener('click',async ()=>{
     }
   }
 
-  state.art=saved; // restore art transform
+  state.art=saved;
 
   const out=sheet.toDataURL('image/png');
   const a=document.createElement('a'); a.href=out; a.download=fname+'.png'; a.click();
@@ -567,7 +588,7 @@ q('#buildSheet').addEventListener('click',async ()=>{
 [fldName,fldType,fldRules,fldFlavor,fldATK,fldHP,fldMOV,fldCOST].forEach(el=>el.addEventListener('input',renderFields));
 fldFaction.addEventListener('change',renderFaction);
 renderFields(); renderFaction(); fitArt(); sizeApply(); deckPos();
-setDiag('Classic layout v6.25 loaded. Inline pipeline + sheet draw fix.');
+setDiag('Classic layout v6.26 loaded. Robust exporter + sheet fix.');
 </script>
 </body>
 </html>
