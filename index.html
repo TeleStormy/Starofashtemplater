@@ -3,11 +3,13 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Star of Ash — Card Templater (Classic Layout v6.24)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.25)</title>
 <style>
   :root{--bg:#0b0b0c;--panel:#151517;--panel-2:#1b1b1f;--text:#eae7e4;--muted:#aaa6a2;--accent:#c0392b;--ash:#2b2b30;--blood:#8a1d1d;--flame:#b8571b;--border:#2b2b30;--ok:#57d38a;--warn:#ffb84d;--bad:#ff6b6b;}
   *{box-sizing:border-box} html,body{height:100%}
-  body{margin:0;background:radial-gradient(1000px 700px at 70% 10%, rgba(200,60,40,.10), transparent 50%),radial-gradient(1200px 900px at 15% 85%, rgba(200,60,40,.06), transparent 60%),var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  body{margin:0;background:radial-gradient(1000px 700px at 70% 10%, rgba(200,60,40,.10), transparent 50%),
+                       radial-gradient(1200px 900px at 15% 85%, rgba(200,60,40,.06), transparent 60%),var(--bg);
+        color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   .app{display:grid;grid-template-columns:300px 1fr 360px;grid-template-rows:56px 1fr;gap:12px;height:100vh;padding:12px}
   header{grid-column:1/4;display:flex;align-items:center;justify-content:space-between;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:10px 14px}
   header h1{font-size:16px;margin:0;letter-spacing:.4px;font-weight:600}
@@ -40,17 +42,20 @@
 
   .art{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:none;user-select:none;pointer-events:none}
   .art-box{position:absolute;inset:80px 50px 210px 50px;border:2px dashed rgba(255,255,255,.08);border-radius:10px}
-  .art-handle{position:absolute;left:50%;top:50%;width:80px;height:80%;max-height:120px;transform:translate(-50%,-50%);border-radius:12px;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;cursor:grab;pointer-events:auto}
+  .art-handle{position:absolute;left:50%;top:50%;width:80px;height:80%;max-height:120px;transform:translate(-50%,-50%);
+              border-radius:12px;background:rgba(255,255,255,.06);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;cursor:grab;pointer-events:auto}
   .art-handle:active{cursor:grabbing}
 
   .frame-template{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:fill;pointer-events:none;opacity:.95;z-index:5;}
 
   .name{position:absolute;left:89px;top:204px;right:24px;font-weight:800;font-size:34px;letter-spacing:.4px;z-index:1200;}
   .type-line{position:absolute;left:90px;top:239px;right:24px;color:#fff;font-size:20px;opacity:.98;z-index:1200;}
-  .rules{position:absolute;left:238px;top:703px;right:24px;min-height:150px;font-size:16px;line-height:1.45;background:rgba(255,255,255,.03);padding:12px 14px;border-radius:10px;border:1px solid var(--border);white-space:normal;overflow-wrap:anywhere;word-wrap:break-word;z-index:1200;}
+  .rules{position:absolute;left:238px;top:703px;right:24px;min-height:150px;font-size:16px;line-height:1.45;background:rgba(255,255,255,.03);
+         padding:12px 14px;border-radius:10px;border:1px solid var(--border);white-space:normal;overflow-wrap:anywhere;word-wrap:break-word;z-index:1200;}
   .flavor{position:absolute;left:24px;right:24px;bottom:24px;font-size:12px;color:#c8c3bd;font-style:italic;z-index:1200;}
 
-  .badge{position:absolute;z-index:1200;min-width:52px;height:52px;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;padding:0 10px}
+  .badge{position:absolute;z-index:1200;min-width:52px;height:52px;border-radius:999px;background:rgba(0,0,0,.35);border:1px solid var(--border);
+         display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;padding:0 10px}
   .cost{position:absolute;left:48px;top:49px;z-index:1300;display:flex;align-items:center;justify-content:center}
   .cost .badge{background:rgba(192,57,43,.38);z-index:1301}
 
@@ -68,7 +73,7 @@
 <body>
 <div class="app">
   <header>
-    <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.24</span></h1>
+    <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.25</span></h1>
     <div class="toolbar">
       <button id="btn-export-png" class="primary">Export PNG</button>
       <button id="btn-inline" title="Force-convert all stage images to data: URLs">Inline Now</button>
@@ -253,7 +258,7 @@
 </div>
 
 <script>
-/* ---------- utilities / state ---------- */
+/* ---------- utils / state ---------- */
 const q = s=>document.querySelector(s);
 const setDiag = m=>{const d=q('#diag'); if(d) d.textContent=m;};
 window.addEventListener('error',e=>setDiag('Error: '+(e.error?.message||e.message)));
@@ -308,7 +313,7 @@ q('#csvFile').addEventListener('change',ev=>{
   const fr=new FileReader(); fr.onload=()=>{ state.csvRows=parseCSV(fr.result); state.rowIndex=0; setDiag(`Loaded ${state.csvRows.length} rows.`); applyRow(); deckPos(); }; fr.readAsText(f);
 });
 
-/* ---------- Images & DnD (keep File + map) ---------- */
+/* ---------- Images & DnD ---------- */
 function updateImgCount(){ q('#imgCount').textContent=`${state.urlToEntry.size} images imported`; }
 async function addFiles(files){
   let added=0;
@@ -333,7 +338,7 @@ q('#imgFiles').addEventListener('change',e=> addFiles([...(e.target.files||[])])
 })();
 updateImgCount();
 
-/* ---------- Frame Template (keep File, but also data: on demand) ---------- */
+/* ---------- Frame Template ---------- */
 q('#frameFile').addEventListener('change',ev=>{
   const f=ev.target.files[0]; if(!f) return;
   const url=URL.createObjectURL(f); state.frame={url,file:f};
@@ -386,14 +391,13 @@ artHandle.addEventListener('mousedown',e=>{dragging=true;sx=e.clientX;sy=e.clien
 window.addEventListener('mousemove',e=>{if(!dragging)return;state.art.x=bx+(e.clientX-sx);state.art.y=by+(e.clientY-sy);q('#artX').value=state.art.x;q('#artY').value=state.art.y;applyArt()});
 window.addEventListener('mouseup',()=>dragging=false);
 
-/* ---------- Layout editing (same as 6.23) ---------- */
-const elements={name:q('#name'),type:q('#type'),rules:q('#rules'),flavor:q('#flavor'),bMOV,qBMov:q('#bMOV'),bATK,qBATK:q('#bATK'),bHP,qBHP:q('#bHP'),bCOST,qBCOST:q('#bCOST'),cost:q('#cost')};
+/* ---------- Layout edit ---------- */
+const elements={name:q('#name'),type:q('#type'),rules:q('#rules'),flavor:q('#flavor'),bMOV:q('#bMOV'),bATK:q('#bATK'),bHP:q('#bHP'),bCOST:q('#bCOST'),cost:q('#cost')};
 const sel=q('#selElement'), posX=q('#posX'), posY=q('#posY'), posW=q('#posW'), posH=q('#posH');
-const ensureAbs=el=>{if(el && getComputedStyle(el).position==='static') el.style.position='absolute';};
-Object.values(elements).forEach(el=>ensureAbs(el));
+Object.values(elements).forEach(el=>{if(el && getComputedStyle(el).position==='static') el.style.position='absolute';});
 const bounds=el=>{const r=el.getBoundingClientRect(), s=stage.getBoundingClientRect(); return {x:r.left-s.left,y:r.top-s.top,w:r.width,h:r.height}};
-function sync(){const el=elements[sel.value]||q('#'+sel.value); if(!el) return; const b=bounds(el); posX.value=Math.round(b.x); posY.value=Math.round(b.y); posW.value=Math.round(b.w); posH.value=Math.round(b.h); const sr=q('#selEdit'); sr.style.display='block'; sr.style.left=(b.x-2)+'px'; sr.style.top=(b.y-2)+'px'; sr.style.width=(b.w+4)+'px'; sr.style.height=(b.h+4)+'px';}
-q('#applyLayout').addEventListener('click',()=>{const el=elements[sel.value]||q('#'+sel.value); if(!el)return; el.style.left=posX.value+'px'; el.style.top=posY.value+'px'; el.style.width=posW.value+'px'; el.style.height=posH.value+'px'; sync(); setDiag('Applied layout.');});
+function sync(){const el=elements[sel.value]; if(!el) return; const b=bounds(el); const sr=q('#selEdit'); posX.value=Math.round(b.x); posY.value=Math.round(b.y); posW.value=Math.round(b.w); posH.value=Math.round(b.h); sr.style.display='block'; sr.style.left=(b.x-2)+'px'; sr.style.top=(b.y-2)+'px'; sr.style.width=(b.w+4)+'px'; sr.style.height=(b.h+4)+'px';}
+q('#applyLayout').addEventListener('click',()=>{const el=elements[sel.value]; if(!el)return; el.style.left=posX.value+'px'; el.style.top=posY.value+'px'; el.style.width=posW.value+'px'; el.style.height=posH.value+'px'; sync(); setDiag('Applied layout.')});
 q('#toggleGuides').addEventListener('click',()=>{stage.style.outline=stage.style.outline?'':'1px dashed #333'});
 
 /* ---------- Hotkeys ---------- */
@@ -412,19 +416,19 @@ function sizeApply(){q('#name').style.fontSize=state.sizes.name+'px'; q('#type')
 /* ---------- Save/Load Layout ---------- */
 function capture(){const pick=el=>({left:el.style.left||el.offsetLeft+'px',top:el.style.top||el.offsetTop+'px',width:el.style.width||el.offsetWidth+'px',height:el.style.height||el.offsetHeight+'px'}); return {name:pick(q('#name')),type:pick(q('#type')),rules:pick(q('#rules')),flavor:pick(q('#flavor')),bMOV:pick(q('#bMOV')),bATK:pick(q('#bATK')),bHP:pick(q('#bHP')),bCOST:pick(q('#bCOST')),cost:pick(q('#cost')),art:{...state.art},sizes:{...state.sizes}}}
 function applyLayout(L){if(!L)return;['name','type','rules','flavor','bMOV','bATK','bHP','bCOST','cost'].forEach(k=>{const d=L[k],el=q('#'+k);if(!d||!el)return;el.style.left=d.left;el.style.top=d.top;el.style.width=d.width;el.style.height=d.height}); state.art=L.art||state.art; if(L.sizes) state.sizes={...state.sizes,...L.sizes}; sizeApply(); q('#artX').value=state.art.x;q('#artY').value=state.art.y;q('#artScale').value=state.art.scale*100;q('#artPad').value=state.art.pad; applyArt();}
-q('#btn-save-layout').addEventListener('click',()=>{lsSet('soa_layout_v624',JSON.stringify(capture()));setDiag('Layout saved.')});
-q('#btn-load-layout').addEventListener('click',()=>{const raw=lsGet('soa_layout_v624',null); if(!raw){setDiag('No saved layout.');return} applyLayout(JSON.parse(raw)); setDiag('Layout loaded.')});
-q('#btn-reset-layout').addEventListener('click',()=>{try{localStorage.removeItem('soa_layout_v624')}catch{} location.reload()});
-q('#btn-export-json').addEventListener('click',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(capture(),null,2)],{type:'application/json'}));a.download='soa_layout_v624.json';a.click()});
+q('#btn-save-layout').addEventListener('click',()=>{lsSet('soa_layout_v625',JSON.stringify(capture()));setDiag('Layout saved.')});
+q('#btn-load-layout').addEventListener('click',()=>{const raw=lsGet('soa_layout_v625',null); if(!raw){setDiag('No saved layout.');return} applyLayout(JSON.parse(raw)); setDiag('Layout loaded.')});
+q('#btn-reset-layout').addEventListener('click',()=>{try{localStorage.removeItem('soa_layout_v625')}catch{} location.reload()});
+q('#btn-export-json').addEventListener('click',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(capture(),null,2)],{type:'application/json'}));a.download='soa_layout_v625.json';a.click()});
 q('#importJson').addEventListener('change',ev=>{const f=ev.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{try{applyLayout(JSON.parse(fr.result));setDiag('Imported layout JSON.')}catch{setDiag('Invalid JSON.')}};fr.readAsText(f)});
 
-/* ---------- INLINE helpers (NEW) ---------- */
+/* ---------- INLINE helpers ---------- */
 const fileToDataURL = file => new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(file)});
 async function inlineImg(img){
   const src=img.getAttribute('src')||''; if(!src || src.startsWith('data:')) return false;
   let entry = state.urlToEntry.get(src);
   if(!entry && state.frame.url===src && state.frame.file) entry=state.frame;
-  if(!entry){ // last resort: fetch (works on http(s), not needed for file://)
+  if(!entry){
     try{
       const blob = await fetch(src,{mode:'cors',credentials:'omit'}).then(r=>r.blob());
       const data = await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(blob)});
@@ -451,15 +455,16 @@ q('#btn-render-check').addEventListener('click',()=>{
 
 /* ---------- DOM -> PNG (clone AFTER inline) ---------- */
 async function domToPng(node){
-  // Make sure live images are inlined before we clone
-  await inlineStageImages();
+  await inlineStageImages(); // ensure data: in live DOM
 
   const clone=node.cloneNode(true);
   clone.querySelector('#selEdit')?.remove();
 
   const xml=new XMLSerializer().serializeToString(clone);
   const w=node.offsetWidth, h=node.offsetHeight;
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><foreignObject width="100%" height="100%">${xml}</foreignObject></svg>`;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+               <foreignObject width="100%" height="100%">${xml}</foreignObject>
+             </svg>`;
   const svgBlob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'});
   const svgUrl=URL.createObjectURL(svgBlob);
   const img=new Image(); img.crossOrigin='anonymous';
@@ -469,7 +474,7 @@ async function domToPng(node){
   return c.toDataURL('image/png');
 }
 
-/* ---------- Export / Queue / Sheet ---------- */
+/* ---------- Export / Queue ---------- */
 q('#btn-export-png').addEventListener('click',async ()=>{
   setDiag('Rendering PNG...');
   try{
@@ -479,8 +484,7 @@ q('#btn-export-png').addEventListener('click',async ()=>{
   }catch(e){ setDiag('Export failed: '+(e.message||e)) }
 });
 
-/* Queue */
-const QUEUE_KEY='soa_queue_v624';
+const QUEUE_KEY='soa_queue_v625';
 function renderQueue(){const wrap=q('#queueThumbs');wrap.innerHTML='';state.queue.forEach((it,i)=>{const d=document.createElement('div');d.className='thumb';const img=document.createElement('img');img.src=it.dataUrl;const rm=document.createElement('button');rm.textContent='×';rm.className='danger';rm.addEventListener('click',()=>{state.queue.splice(i,1);lsSet(QUEUE_KEY,JSON.stringify(state.queue));renderQueue();queueCount()});d.appendChild(img);d.appendChild(rm);wrap.appendChild(d)})}
 function loadQueue(){try{const arr=JSON.parse(lsGet(QUEUE_KEY,'[]')); if(Array.isArray(arr)) state.queue=arr.filter(x=>x&&x.dataUrl)}catch{} queueCount(); renderQueue();}
 function queueCount(){q('#queueCount').textContent=`${state.queue.length} queued`; }
@@ -503,10 +507,9 @@ q('#btn-clear-queue').addEventListener('click',()=>{state.queue=[];renderQueue()
 document.addEventListener('keydown',e=>{const tag=(e.target?.tagName||'').toLowerCase(); if(e.key.toLowerCase()==='q' && tag!=='input') addCurrentToQueue();});
 loadQueue();
 
-/* Sheet builder (uses queue if checked, else CSV) */
+/* ---------- Sheet builder (fixed draw path) ---------- */
 function applyPreset(val){const cols=q('#sheetCols'),rows=q('#sheetRows'),w=q('#sheetW'),h=q('#sheetH'),name=q('#sheetName'); if(val==='tts10x7'){cols.value=10;rows.value=7;w.value=4096;h.value=4096;name.value='SoA_TTS_10x7'} else if(val==='tts7x10'){cols.value=7;rows.value=10;w.value=4096;h.value=4096;name.value='SoA_TTS_7x10'} else if(val==='a2_7x5'){cols.value=7;rows.value=5;w.value=5600;h.value=4000;name.value='SoA_7x5_5600x4000'}}
 q('#sheetPreset').addEventListener('change',e=>applyPreset(e.target.value));
-
 async function renderCardImage(){ return await domToPng(stage); }
 
 q('#buildSheet').addEventListener('click',async ()=>{
@@ -521,38 +524,50 @@ q('#buildSheet').addEventListener('click',async ()=>{
   const saved={...state.art};
 
   let idx=start, placed=0;
-  for(let r=0;r<rows;r++){
+  outer: for(let r=0;r<rows;r++){
     for(let c=0;c<cols;c++){
-      if(placed>=count) break;
+      if(placed>=count) break outer;
       let dataUrl;
       if(useQueue){
-        if(idx>=state.queue.length) break;
+        if(idx>=state.queue.length) break outer;
         dataUrl=state.queue[idx].dataUrl;
       }else{
-        if(idx>=state.csvRows.length) break;
+        if(idx>=state.csvRows.length) break outer;
         state.rowIndex=idx; applyRow();
         dataUrl=await renderCardImage();
       }
-      const img=await new Promise(res=>{const im=new Image(); im.onload=()=>res(im); im.src=dataUrl;});
+
+      const img = await new Promise(res=>{const im=new Image(); im.onload=()=>res(im); im.src=dataUrl;});
+      const srcW = img.naturalWidth  || img.width;
+      const srcH = img.naturalHeight || img.height;
+
       const x=pad+c*(cellW+pad), y=pad+r*(cellH+pad);
-      const sc=Math.min(cellW/img.width, cellH/img.height);
-      const dw=Math.round(img.width*sc), dh=Math.round(img.height*sc);
-      const offX=x+Math.floor((cellW-dw)/2), offY=y+Math.floor((cellH-dh)/2);
-      ctx.drawImage(img,offX,offY,dw,dh);
+      const sc   = Math.min(cellW/srcW, cellH/srcH);
+      const drawW = Math.round(srcW*sc), drawH = Math.round(srcH*sc);
+      const offX  = x + Math.floor((cellW-drawW)/2);
+      const offY  = y + Math.floor((cellH-drawH)/2);
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0,0,srcW,srcH,  offX,offY,drawW,drawH);
+
       idx++; placed++;
     }
   }
-  state.art=saved; // restore
-  const out=sheet.toDataURL('image/png'); const a=document.createElement('a'); a.href=out; a.download=fname+'.png'; a.click();
+
+  state.art=saved; // restore art transform
+
+  const out=sheet.toDataURL('image/png');
+  const a=document.createElement('a'); a.href=out; a.download=fname+'.png'; a.click();
   q('#sheetPreview').textContent=`Built ${placed} cards → ${fname}.png (${W}×${H})`;
   setDiag(`Sheet built: ${placed} cards.`);
 });
 
-/* ---------- field/initial ---------- */
+/* ---------- init ---------- */
 [fldName,fldType,fldRules,fldFlavor,fldATK,fldHP,fldMOV,fldCOST].forEach(el=>el.addEventListener('input',renderFields));
 fldFaction.addEventListener('change',renderFaction);
 renderFields(); renderFaction(); fitArt(); sizeApply(); deckPos();
-setDiag('Classic layout v6.24 loaded. Inline pipeline enabled.');
+setDiag('Classic layout v6.25 loaded. Inline pipeline + sheet draw fix.');
 </script>
 </body>
 </html>
