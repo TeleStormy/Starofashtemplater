@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Star of Ash — Card Templater (Classic Layout v6.21)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.22)</title>
 <style>
   :root{
     --bg:#0b0b0c;--panel:#151517;--panel-2:#1b1b1f;--text:#eae7e4;--muted:#aaa6a2;
@@ -118,7 +118,7 @@
 <body>
 <div class="app">
   <header>
-    <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.21</span></h1>
+    <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.22</span></h1>
     <div class="toolbar">
       <button id="btn-export-png" class="primary">Export PNG</button>
       <button id="btn-save-layout" title="Save your current field positions to localStorage">Save Layout</button>
@@ -136,7 +136,7 @@
       <div class="row"><label class="small">Mass Import Images</label></div>
       <div class="row"><input type="file" id="imgFiles" multiple accept="image/*"></div>
       <div class="row"><div id="imgDrop" class="dropzone">Drag & drop images here</div></div>
-      <div class="row hint"><span id="imgCount" class="pill">0 images imported</span> &nbsp; Filenames should match <b>Art</b> column or <b>Name</b> (case/space/underscore-insensitive).</div>
+      <div class="row hint"><span id="imgCount" class="pill">0 images imported</span> &nbsp; Filenames should match <b>Art</b> column or <b>Name</b>.</div>
     </div>
 
     <div class="section">
@@ -316,11 +316,14 @@ window.addEventListener('unhandledrejection', e=> setDiag('Promise: '+(e.reason?
 const state = {
   csvRows: [],
   rowIndex: 0,
-  images: new Map(),   // normalized name -> objectURL
+  // store both key->entry and url->entry so we can inline without fetch()
+  images: new Map(),        // key -> {url, file}
+  urlToEntry: new Map(),    // url -> {url, file}
   guides: false,
   art: { x:0, y:0, scale:1, pad:0 },
   queue: [],
-  sizes: { name:34, type:20, rules:16, flavor:12, badge:20 }
+  sizes: { name:34, type:20, rules:16, flavor:12, badge:20 },
+  frame: { url:null, file:null }
 };
 
 const stage=q('#stage'), artImg=q('#art'), artBox=q('#artBox'), artHandle=q('#artHandle'), selEdit=q('#selEdit'), frameTpl=q('#frameTpl');
@@ -386,14 +389,15 @@ q('#csvFile').addEventListener('change',ev=>{
   fr.readAsText(f);
 });
 
-/* ===== Mass Images (fixed + DnD) ===== */
-function updateImgCount(){ q('#imgCount').textContent = `${state.images.size} images imported`; }
+/* ===== Mass Images (fixed + DnD + keep File refs) ===== */
+function updateImgCount(){ q('#imgCount').textContent = `${state.urlToEntry.size} images imported`; }
 async function addFilesToImages(files){
   let added=0;
-  for(const f of files){
-    if(!f || !f.name) continue;
-    const base=f.name.replace(/\.[^.]+$/,'');
-    const url=URL.createObjectURL(f);
+  for(const file of files){
+    if(!file || !file.name) continue;
+    const base=file.name.replace(/\.[^.]+$/,'');
+    const url=URL.createObjectURL(file);
+    const entry={url,file};
     // store multiple keys for fuzzy match
     const keys = new Set([
       base,
@@ -401,11 +405,12 @@ async function addFilesToImages(files){
       normalizeKey(base),
       normalizeKey(base.replace(/[_\s-]+/g,'')),
     ]);
-    keys.forEach(k=> state.images.set(k, url));
+    keys.forEach(k=> state.images.set(k, entry));
+    state.urlToEntry.set(url, entry);
     added++;
   }
   updateImgCount();
-  setDiag(`Imported ${added} images (total ${state.images.size}).`);
+  setDiag(`Imported ${added} images (total ${state.urlToEntry.size}).`);
   applyRow();
 }
 q('#imgFiles').addEventListener('change', ev=>{
@@ -423,11 +428,14 @@ q('#imgFiles').addEventListener('change', ev=>{
 })();
 updateImgCount();
 
-/* ===== Frame loader ===== */
+/* ===== Frame loader (keep File ref) ===== */
 q('#frameFile').addEventListener('change',ev=>{
   const f=ev.target.files[0]; if(!f) return;
   frameTpl.crossOrigin='anonymous';
-  const url=URL.createObjectURL(f); frameTpl.src=url; frameTpl.style.display='block'; setDiag('Frame template loaded.');
+  const url=URL.createObjectURL(f);
+  state.frame = {url, file:f};
+  frameTpl.src=url; frameTpl.style.display='block';
+  setDiag('Frame template loaded.');
 });
 q('#frameOpacity').addEventListener('input',e=> frameTpl.style.opacity=(+e.target.value)/100);
 q('#frameZ').addEventListener('change',e=>{
@@ -459,8 +467,9 @@ function applyRow(){
       normalizeKey(artKeyRaw),
       normalizeKey(String(artKeyRaw).replace(/[_\s-]+/g,'')),
     ];
-    let hit=null; for(const key of candidates){ if(state.images.has(key)){ hit=state.images.get(key); break; } }
-    if(hit){ artImg.crossOrigin='anonymous'; artImg.src=hit; setDiag('Matched art: '+artKeyRaw); } else { artImg.removeAttribute('src'); }
+    let hit=null;
+    for(const key of candidates){ if(state.images.has(key)){ hit=state.images.get(key); break; } }
+    if(hit){ artImg.crossOrigin='anonymous'; artImg.src=hit.url; setDiag('Matched art: '+artKeyRaw); } else { artImg.removeAttribute('src'); }
   }
   renderFields(); renderFaction(); fitArtBox(); applySizes(); deckPos();
 }
@@ -533,10 +542,13 @@ window.addEventListener('mousemove',e=>{
 });
 window.addEventListener('mouseup',()=>{ resizing=false; });
 
+/* Hotkeys: work even when inputs focused (use Alt+Q as fallback) */
 window.addEventListener('keydown',e=>{
+  const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+  const inField = tag==='input' || tag==='textarea';
   if(e.key==='['){ if(state.csvRows.length){ state.rowIndex=(state.rowIndex-1+state.csvRows.length)%state.csvRows.length; applyRow(); } e.preventDefault(); return; }
   if(e.key===']'){ if(state.csvRows.length){ state.rowIndex=(state.rowIndex+1)%state.csvRows.length; applyRow(); } e.preventDefault(); return; }
-  if(e.key.toLowerCase()==='q'){ addCurrentToQueue(); e.preventDefault(); return; }
+  if(e.key.toLowerCase()==='q' && (!inField || e.altKey)){ addCurrentToQueue(); e.preventDefault(); return; }
 });
 
 q('#toggleGuides').addEventListener('click',()=>{ state.guides=!state.guides; stage.style.outline=state.guides?'1px dashed #333':'none'; setDiag('Guides '+(state.guides?'on':'off')); });
@@ -577,14 +589,18 @@ function applyLayout(L){
   artX.value=state.art.x; artY.value=state.art.y; artScale.value=state.art.scale*100; artPad.value=state.art.pad; applyArt();
   syncInspector();
 }
-q('#btn-save-layout').addEventListener('click',()=>{ lsSet('soa_layout_v621', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
-q('#btn-load-layout').addEventListener('click',()=>{ const raw=lsGet('soa_layout_v621',null); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); deckPos(); });
-q('#btn-reset-layout').addEventListener('click',()=>{ try{localStorage.removeItem('soa_layout_v621');}catch{} location.reload(); });
-q('#btn-export-json').addEventListener('click',()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v621.json'; a.click(); });
+q('#btn-save-layout').addEventListener('click',()=>{ lsSet('soa_layout_v622', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
+q('#btn-load-layout').addEventListener('click',()=>{ const raw=lsGet('soa_layout_v622',null); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); deckPos(); });
+q('#btn-reset-layout').addEventListener('click',()=>{ try{localStorage.removeItem('soa_layout_v622');}catch{} location.reload(); });
+q('#btn-export-json').addEventListener('click',()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v622.json'; a.click(); });
 q('#importJson').addEventListener('change',ev=>{ const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ try{ applyLayout(JSON.parse(fr.result)); setDiag('Imported layout JSON.'); deckPos(); }catch{ setDiag('Invalid JSON.'); } }; fr.readAsText(f); });
 
-/* ===== Taint-proof rendering: inline ALL images ===== */
+/* ===== Taint-proof rendering: inline ALL images (prefer FileReader over fetch) ===== */
+async function fileToDataURL(file){
+  return await new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(file); });
+}
 async function urlToDataURL(url){
+  // fallback for http(s) images (not blob)
   const res=await fetch(url,{mode:'cors',credentials:'omit'});
   if(!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
   const blob=await res.blob();
@@ -596,16 +612,25 @@ async function inlineStageImages(stageEl){
   const changed=[];
   for(const img of imgs){
     const src=img.getAttribute('src')||''; if(isDataLike(src)) continue;
+
+    // try local File first (frame or mass-import)
+    let entry = state.urlToEntry.get(src);
+    if(!entry && state.frame.url===src && state.frame.file) entry = state.frame;
     try{
-      const data=await urlToDataURL(src);
+      let data=null;
+      if(entry && entry.file){
+        data = await fileToDataURL(entry.file);           // reliable for blob: from user files
+      }else{
+        data = await urlToDataURL(src);                   // http(s) fallback
+      }
       changed.push([img,src]);
       img.setAttribute('src',data);
     }catch(err){
-      console.warn('Failed to inline image:', src, err);
-      setDiag('Render blocked: cannot inline image ' + src);
+      console.warn('Inline failed for', src, err);
+      setDiag('Render blocked (cannot inline): ' + src);
     }
   }
-  return ()=>{ for(const [img,old] of changed){ img.setAttribute('src',old); } };
+  return ()=>{ for(const [img, old] of changed){ img.setAttribute('src', old); } };
 }
 async function domToPng(node){
   const restore=await inlineStageImages(node);
@@ -622,7 +647,8 @@ async function domToPng(node){
     await new Promise(res=>{ img.onload=res; img.src=svgUrl; });
     const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d');
     ctx.clearRect(0,0,w,h); ctx.drawImage(img,0,0);
-    ctx.getImageData(0,0,1,1); // verify clean
+    // verify not tainted
+    ctx.getImageData(0,0,1,1);
     return c.toDataURL('image/png');
   }finally{
     try{ restore(); }catch{}
@@ -640,7 +666,7 @@ q('#btn-export-png').addEventListener('click', async ()=>{
 });
 
 /* ===== Queue (robust button binding) ===== */
-const QUEUE_KEY='soa_queue_v621';
+const QUEUE_KEY='soa_queue_v622';
 function queueCount(){ q('#queueCount').textContent=`${state.queue.length} queued`; }
 function renderQueueThumbs(){
   const wrap=q('#queueThumbs'); wrap.innerHTML='';
@@ -655,11 +681,12 @@ function renderQueueThumbs(){
 function loadQueue(){ try{ const arr=JSON.parse(lsGet(QUEUE_KEY,'[]')); if(Array.isArray(arr)) state.queue=arr.filter(x=>x&&x.dataUrl); }catch{} queueCount(); renderQueueThumbs(); }
 async function addCurrentToQueue(){
   try{
+    setDiag('Rendering for queue…');
     const dataUrl=await domToPng(stage);
     const name=fldName.value||`Card ${state.queue.length+1}`;
     state.queue.push({dataUrl,name}); lsSet(QUEUE_KEY, JSON.stringify(state.queue));
     renderQueueThumbs(); queueCount(); setDiag(`Queued: ${name}`);
-  }catch(e){ /* diag already set */ }
+  }catch(e){ setDiag('Queue render failed: '+(e.message||e)); }
 }
 function saveQueue(){ lsSet(QUEUE_KEY, JSON.stringify(state.queue)); setDiag(`Queue saved (${state.queue.length})`); }
 function exportQueuePNGs(){
@@ -759,7 +786,7 @@ function init(){
   deckPos();
   (q('#selElement').value='name'), syncInspector();
   applySizes(); loadQueue();
-  setDiag('v6.21 — queue button hardened; mass import fixed; z-index for stats enforced.');
+  setDiag('v6.22 — queue fixed for local files (no fetch(blob:)), mass import keeps File refs, stats always on top.');
 }
 init();
 window.addEventListener('beforeunload',()=> lsSet(QUEUE_KEY, JSON.stringify(state.queue)));
