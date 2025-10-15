@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Star of Ash — Card Templater (Classic Layout v6.27)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.28)</title>
 <style>
   :root{--bg:#0b0b0c;--panel:#151517;--panel-2:#1b1b1f;--text:#eae7e4;--muted:#aaa6a2;--accent:#c0392b;--ash:#2b2b30;--blood:#8a1d1d;--flame:#b8571b;--border:#2b2b30;--ok:#57d38a;--warn:#ffb84d;--bad:#ff6b6b;}
   *{box-sizing:border-box} html,body{height:100%}
@@ -46,7 +46,7 @@
   /* frame template above or below art, but text/badges always above */
   .frame-template{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:fill;pointer-events:none;opacity:.95;z-index:5;}
 
-  /* text & rules fixed coords from your last request + higher z-index than overlay */
+  /* text & rules fixed coords + high z-index */
   .name{position:absolute;left:89px;top:204px;right:24px;font-weight:800;font-size:34px;letter-spacing:.4px;z-index:1200;}
   .type-line{position:absolute;left:90px;top:239px;right:24px;color:#fff;font-size:20px;opacity:.98;z-index:1200;}
   .rules{position:absolute;left:238px;top:703px;right:24px;min-height:150px;font-size:16px;line-height:1.45;background:rgba(255,255,255,.03);
@@ -72,7 +72,7 @@
 <body>
 <div class="app">
   <header>
-    <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.27</span></h1>
+    <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.28</span></h1>
     <div class="toolbar">
       <button id="btn-export-png" class="primary">Export PNG</button>
       <button id="btn-inline" title="Force-convert all stage images to data: URLs">Inline Now</button>
@@ -290,7 +290,7 @@ function loadImageWithTimeout(src, ms=RENDER_TIMEOUT){
     const finish=(fn,arg)=>{if(done)return; done=true; clearTimeout(t); fn(arg);};
     const t=setTimeout(()=>finish(rej,new Error('SVG rasterize timeout')),ms);
     im.onload = ()=>finish(res,im);
-    im.onerror= ()=>finish(rej,new Error('SVG rasterize error')));
+    im.onerror= ()=>finish(rej,new Error('SVG rasterize error'));
     im.src=src;
   });
 }
@@ -307,91 +307,65 @@ async function waitForImagesLoaded(root, ms=RENDER_TIMEOUT){
   })));
 }
 
-<script>
-// ===== CSV LOADER (robust) — drop-in for v6.27 =====
+/* ---------- CSV (robust) ---------- */
 function parseCSV(text){
-  // Normalize line endings & strip BOM
   text = String(text || '').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
-  // If file is empty
   if (!text.trim()) return [];
-
-  // Delimiter sniff (commas, semicolons, tabs, pipes)
   const firstLine = (text.split('\n')[0] || '');
-  const counts = {
-    ',': (firstLine.match(/,/g)  || []).length,
-    ';': (firstLine.match(/;/g)  || []).length,
-    '\t':(firstLine.match(/\t/g) || []).length,
-    '|': (firstLine.match(/\|/g) || []).length
-  };
+  const counts = { ',':(firstLine.match(/,/g)||[]).length, ';':(firstLine.match(/;/g)||[]).length, '\t':(firstLine.match(/\t/g)||[]).length, '|':(firstLine.match(/\|/g)||[]).length };
   const delim = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0] || ',';
 
-  // Tokenize a single CSV line respecting quotes
   function parseLine(line, d){
-    const out = [];
-    let cur = '';
-    let inQ = false;
-    for (let i=0;i<line.length;i++){
-      const ch = line[i];
-      if (ch === '"'){
-        if (inQ && line[i+1] === '"'){ cur += '"'; i++; }
-        else { inQ = !inQ; }
-      } else if (ch === d && !inQ){
-        out.push(cur); cur = '';
-      } else {
-        cur += ch;
-      }
+    const out=[]; let cur=''; let inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){ if(inQ && line[i+1]==='"'){ cur+='"'; i++; } else inQ=!inQ; }
+      else if(ch===d && !inQ){ out.push(cur); cur=''; }
+      else { cur+=ch; }
     }
     out.push(cur);
     return out;
   }
 
   const lines = text.split('\n');
-  const header = parseLine(lines.shift() || '', delim).map(s=>s.trim());
+  const header = parseLine(lines.shift()||'',delim).map(s=>s.trim());
 
-  const rows = [];
-  for (const line of lines){
-    if (!line.length) continue;
-    const cells = parseLine(line, delim).map(s => String(s).trim());
-    // Skip fully-empty lines
-    if (!cells.some(v => v.length)) continue;
-    const obj = {};
-    header.forEach((h,i)=> obj[h] = (cells[i] ?? ''));
-    rows.push(obj);
+  const rows=[];
+  for(const line of lines){
+    if(!line.length) continue;
+    const cells=parseLine(line,delim).map(s=>String(s).trim());
+    if(!cells.some(v=>v.length)) continue;
+    const obj={}; header.forEach((h,i)=>obj[h]=cells[i]??''); rows.push(obj);
   }
-
   setDiag(`CSV parsed (delim “${delim}”): ${rows.length} rows, ${header.length} columns.`);
   return rows;
 }
-
-// Button -> open file picker
+function pickFuzzy(row,names){
+  const map={}; Object.keys(row).forEach(k=>map[normalize(k)]=row[k]);
+  for(const n of names){const k=normalize(n); if(map[k]!=null && String(map[k]).trim()!=='') return map[k];}
+  for(const k in map){for(const n of names){if(k.includes(normalize(n)) && String(map[k]).trim()!=='') return map[k];}}
+  return '';
+}
+function deckPos(){const el=q('#deckPos'); if(el) el.textContent=`${(state.csvRows.length?state.rowIndex+1:0)} / ${(state.csvRows.length||0)}`;}
 q('#btn-load-csv').addEventListener('click',()=> q('#csvFile').click());
-
-// On file chosen -> read & parse
-q('#csvFile').addEventListener('change', (ev)=>{
-  const f = ev.target.files && ev.target.files[0];
-  if (!f){ setDiag('No CSV selected.'); return; }
-  const fr = new FileReader();
-  fr.onerror = () => setDiag('Failed to read CSV: ' + (fr.error?.message || 'unknown error'));
-  fr.onload  = () => {
-    try {
-      const rows = parseCSV(fr.result);
-      state.csvRows = rows;
-      state.rowIndex = 0;
-      if (!rows.length){
-        const preview = (String(fr.result).split(/\r?\n/).slice(0,2).join(' ⏎ ')) || '(empty)';
-        setDiag('CSV parsed but no data rows found. First lines: ' + preview);
+q('#csvFile').addEventListener('change',(ev)=>{
+  const f=ev.target.files && ev.target.files[0];
+  if(!f){ setDiag('No CSV selected.'); return; }
+  const fr=new FileReader();
+  fr.onerror=()=>setDiag('Failed to read CSV: '+(fr.error?.message||'unknown error'));
+  fr.onload =()=>{
+    try{
+      state.csvRows=parseCSV(fr.result);
+      state.rowIndex=0;
+      if(!state.csvRows.length){
+        const preview=(String(fr.result).split(/\n/).slice(0,2).join(' ⏎ '))||'(empty)';
+        setDiag('CSV parsed but no data rows found. First lines: '+preview);
       }
-      applyRow();
-      deckPos();
-    } catch (e){
-      setDiag('CSV parse error: ' + (e.message || e));
-    }
+      applyRow(); deckPos();
+    }catch(e){ setDiag('CSV parse error: '+(e.message||e)); }
   };
-  fr.readAsText(f, 'utf-8');
+  fr.readAsText(f,'utf-8');
 });
-</script>
-
 
 /* ---------- Images & DnD ---------- */
 function updateImgCount(){ q('#imgCount').textContent=`${state.urlToEntry.size} images imported`; }
@@ -496,10 +470,10 @@ function sizeApply(){q('#name').style.fontSize=state.sizes.name+'px'; q('#type')
 /* ---------- Save/Load Layout ---------- */
 function capture(){const pick=el=>({left:el.style.left||el.offsetLeft+'px',top:el.style.top||el.offsetTop+'px',width:el.style.width||el.offsetWidth+'px',height:el.style.height||el.offsetHeight+'px'}); return {name:pick(q('#name')),type:pick(q('#type')),rules:pick(q('#rules')),flavor:pick(q('#flavor')),bMOV:pick(q('#bMOV')),bATK:pick(q('#bATK')),bHP:pick(q('#bHP')),bCOST:pick(q('#bCOST')),cost:pick(q('#cost')),art:{...state.art},sizes:{...state.sizes}}}
 function applyLayout(L){if(!L)return;['name','type','rules','flavor','bMOV','bATK','bHP','bCOST','cost'].forEach(k=>{const d=L[k],el=q('#'+k);if(!d||!el)return;el.style.left=d.left;el.style.top=d.top;el.style.width=d.width;el.style.height=d.height}); state.art=L.art||state.art; if(L.sizes) state.sizes={...state.sizes,...L.sizes}; sizeApply(); q('#artX').value=state.art.x;q('#artY').value=state.art.y;q('#artScale').value=state.art.scale*100;q('#artPad').value=state.art.pad; applyArt();}
-q('#btn-save-layout').addEventListener('click',()=>{lsSet('soa_layout_v627',JSON.stringify(capture()));setDiag('Layout saved.')});
-q('#btn-load-layout').addEventListener('click',()=>{const raw=lsGet('soa_layout_v627',null); if(!raw){setDiag('No saved layout.');return} applyLayout(JSON.parse(raw)); setDiag('Layout loaded.')});
-q('#btn-reset-layout').addEventListener('click',()=>{try{localStorage.removeItem('soa_layout_v627')}catch{} location.reload()});
-q('#btn-export-json').addEventListener('click',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(capture(),null,2)],{type:'application/json'}));a.download='soa_layout_v627.json';a.click()});
+q('#btn-save-layout').addEventListener('click',()=>{lsSet('soa_layout_v628',JSON.stringify(capture()));setDiag('Layout saved.')});
+q('#btn-load-layout').addEventListener('click',()=>{const raw=lsGet('soa_layout_v628',null); if(!raw){setDiag('No saved layout.');return} applyLayout(JSON.parse(raw)); setDiag('Layout loaded.')});
+q('#btn-reset-layout').addEventListener('click',()=>{try{localStorage.removeItem('soa_layout_v628')}catch{} location.reload()});
+q('#btn-export-json').addEventListener('click',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(capture(),null,2)],{type:'application/json'}));a.download='soa_layout_v628.json';a.click()});
 q('#importJson').addEventListener('change',ev=>{const f=ev.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{try{applyLayout(JSON.parse(fr.result));setDiag('Imported layout JSON.')}catch{setDiag('Invalid JSON.')}};fr.readAsText(f)});
 
 /* ---------- INLINE helpers ---------- */
@@ -575,7 +549,7 @@ q('#btn-export-png').addEventListener('click',async ()=>{
   }catch(e){ setDiag('Export failed: '+(e.message||e)) }
 });
 
-const QUEUE_KEY='soa_queue_v627';
+const QUEUE_KEY='soa_queue_v628';
 function renderQueue(){const wrap=q('#queueThumbs');wrap.innerHTML='';state.queue.forEach((it,i)=>{const d=document.createElement('div');d.className='thumb';const img=document.createElement('img');img.src=it.dataUrl;const rm=document.createElement('button');rm.textContent='×';rm.className='danger';rm.addEventListener('click',()=>{state.queue.splice(i,1);lsSet(QUEUE_KEY,JSON.stringify(state.queue));renderQueue();queueCount()});d.appendChild(img);d.appendChild(rm);wrap.appendChild(d)})}
 function loadQueue(){try{const arr=JSON.parse(lsGet(QUEUE_KEY,'[]')); if(Array.isArray(arr)) state.queue=arr.filter(x=>x&&x.dataUrl)}catch{} queueCount(); renderQueue();}
 function queueCount(){q('#queueCount').textContent=`${state.queue.length} queued`; }
@@ -660,9 +634,8 @@ q('#buildSheet').addEventListener('click',async ()=>{
 [fldName,fldType,fldRules,fldFlavor,fldATK,fldHP,fldMOV,fldCOST].forEach(el=>el.addEventListener('input',renderFields));
 fldFaction.addEventListener('change',renderFaction);
 q('#btn-inline').addEventListener('click',async ()=>{const n=await inlineStageImages(); setDiag(`Inline: converted ${n} image(s) to data URLs.`)});
-q('#btn-export-png'); // (bound above)
 renderFields(); renderFaction(); fitArt(); sizeApply(); deckPos();
-setDiag('Classic layout v6.27 loaded. Guarded exporter + queue fix.');
+setDiag('Classic layout v6.28 loaded. CSV fix + guarded exporter.');
 </script>
 </body>
 </html>
