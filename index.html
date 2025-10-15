@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater (Classic Layout v6.15)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.16)</title>
 <style>
   :root{
     --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
@@ -26,7 +26,7 @@
   header h1{font-size:16px;margin:0;letter-spacing:.4px;font-weight:600}
   header .tag{padding:4px 8px;border-radius:999px;font-size:12px;background:rgba(255,255,255,.06);border:1px solid var(--border)}
   .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-  .left,.right{padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+  .left,.right{padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto} /* scrollable side panels */
   .section{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:10px}
   .section h3{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:600}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -101,7 +101,6 @@
     border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
     font-weight:800;font-size:20px;padding:0 10px
   }
-  /* COST badge group */
   .cost{position:absolute;left:48px;top:49px;z-index:1200;display:flex;align-items:center;justify-content:center}
   .cost .badge{background:rgba(192,57,43,.38)}
 
@@ -130,7 +129,7 @@
 <body>
   <div class="app">
     <header>
-      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.15</span></h1>
+      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.16</span></h1>
       <div class="toolbar">
         <button id="btn-export-png" class="primary">Export PNG</button>
         <button id="btn-save-layout" title="Save your current field positions to localStorage">Save Layout</button>
@@ -159,7 +158,7 @@
         <div class="row"><button id="fitArt" class="ok">Fit to Frame</button></div>
       </div>
 
-      <!-- NEW: Text size sliders -->
+      <!-- Text size sliders -->
       <div class="section">
         <h3>Text Sizes</h3>
         <div class="row"><label>Name</label><input type="range" id="szName"  min="8" max="80" value="34"></div>
@@ -342,7 +341,7 @@
     art: { x:0, y:0, scale:1, pad:0 },
     frameUrl: null,
     queue: [],
-    sizes: { name:34, type:20, rules:16, flavor:12, badge:20 } // NEW
+    sizes: { name:34, type:20, rules:16, flavor:12, badge:20 }
   };
 
   const q = sel => document.querySelector(sel);
@@ -375,7 +374,7 @@
   const artScale = q('#artScale');
   const artPad = q('#artPad');
 
-  // NEW: size sliders
+  // size sliders
   const szName=q('#szName'), szType=q('#szType'), szRules=q('#szRules'), szFlavor=q('#szFlavor'), szBadge=q('#szBadge');
 
   const diag = q('#diag');
@@ -577,9 +576,8 @@
 
   q('#toggleGuides').addEventListener('click', ()=>{ state.guides=!state.guides; stage.style.outline=state.guides?'1px dashed #333':'none'; setDiag('Guides '+(state.guides?'on':'off')); });
 
-  /* ---------- SIZE CONTROLS (NEW) ---------- */
+  /* ---------- SIZE CONTROLS ---------- */
   function applyBadgeScale(fontPx){
-    // Scale badge diameter based on font size, with sane limits
     const d = Math.max(36, Math.round(fontPx * 2.2));
     [bATK,bHP,bMOV,bCOST].forEach(el=>{
       el.style.fontSize = fontPx + 'px';
@@ -595,7 +593,6 @@
     q('#rules').style.fontSize = state.sizes.rules + 'px';
     q('#flavor').style.fontSize= state.sizes.flavor + 'px';
     applyBadgeScale(state.sizes.badge);
-    // sync sliders if needed
     szName.value=state.sizes.name; szType.value=state.sizes.type; szRules.value=state.sizes.rules; szFlavor.value=state.sizes.flavor; szBadge.value=state.sizes.badge;
   }
   [szName,szType,szRules,szFlavor,szBadge].forEach(sl=>{
@@ -617,22 +614,21 @@
       bMOV: pick(elements.bMOV), bATK: pick(elements.bATK), bHP: pick(elements.bHP), bCOST: pick(elements.bCOST),
       badges: pick(elements.badges), cost: pick(elements.cost),
       art: {...state.art}, frame: {opacity: frameTpl.style.opacity || 0.95, z: frameTpl.style.zIndex||6},
-      sizes: {...state.sizes} // persist sizes
+      sizes: {...state.sizes}
     };
   }
   function applyLayout(L){
     if(!L) return; const keys=['name','type','rules','flavor','bMOV','bATK','bHP','bCOST','badges','cost'];
     for(const k of keys){ const d=L[k], el=elements[k]; if(!d||!el) continue; el.style.left=d.left; el.style.top=d.top; el.style.width=d.width; el.style.height=d.height; }
-    state.art=L.art||state.art; if(L.sizes) state.sizes={...state.sizes, ...L.sizes}; // restore sizes
-    applySizes();
-    if(L.frame){ frameTpl.style.opacity=L.frame.opacity; frameTpl.style.zIndex=L.frame.z; }
+    state.art=L.art||state.art; if(L.sizes) state.sizes={...state.sizes, ...L.sizes}; applySizes();
     q('#artX').value=state.art.x; q('#artY').value=state.art.y; q('#artScale').value=state.art.scale*100; q('#artPad').value=state.art.pad; applyArt();
+    if(L.frame){ frameTpl.style.opacity=L.frame.opacity; frameTpl.style.zIndex=L.frame.z; }
     syncInspector();
   }
-  q('#btn-save-layout').addEventListener('click', ()=>{ localStorage.setItem('soa_layout_v615', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
-  q('#btn-load-layout').addEventListener('click', ()=>{ const raw = localStorage.getItem('soa_layout_v615'); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); deckPos(); });
-  q('#btn-reset-layout').addEventListener('click', ()=>{ ['soa_layout_v615'].forEach(k=>localStorage.removeItem(k)); location.reload(); });
-  q('#btn-export-json').addEventListener('click', ()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v615.json'; a.click(); });
+  q('#btn-save-layout').addEventListener('click', ()=>{ localStorage.setItem('soa_layout_v616', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
+  q('#btn-load-layout').addEventListener('click', ()=>{ const raw = localStorage.getItem('soa_layout_v616'); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); deckPos(); });
+  q('#btn-reset-layout').addEventListener('click', ()=>{ ['soa_layout_v616'].forEach(k=>localStorage.removeItem(k)); location.reload(); });
+  q('#btn-export-json').addEventListener('click', ()=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'})); a.download='soa_layout_v616.json'; a.click(); });
   q('#importJson').addEventListener('change', ev=>{ const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ try{ applyLayout(JSON.parse(fr.result)); setDiag('Imported layout JSON.'); deckPos(); }catch{ setDiag('Invalid JSON.'); } }; fr.readAsText(f); });
 
   /* ---------- Prev/Next ---------- */
@@ -647,9 +643,11 @@
     setDiag('Exported PNG.');
   });
 
-  /* ---------- Queue (auto-save) ---------- */
-  const QUEUE_KEY = 'soa_queue_v615';
+  /* ---------- Queue (fixed & robust) ---------- */
+  const QUEUE_KEY = 'soa_queue_v616';
+
   const queueCount = ()=> q('#queueCount').textContent = `${state.queue.length} queued`;
+
   function renderQueueThumbs(){
     const wrap = q('#queueThumbs'); wrap.innerHTML='';
     state.queue.forEach((item, idx)=>{
@@ -660,15 +658,15 @@
       d.appendChild(img); d.appendChild(rm); wrap.appendChild(d);
     });
   }
+
   function loadQueueFromStorage(){
-    const raw = localStorage.getItem(QUEUE_KEY);
-    if(!raw) return;
-    try{
-      const arr = JSON.parse(raw);
-      if(Array.isArray(arr)) state.queue = arr.filter(x=>x && x.dataUrl);
-      queueCount(); renderQueueThumbs();
-    }catch{}
+    let arr = [];
+    try { arr = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch {}
+    if (Array.isArray(arr)) state.queue = arr.filter(x => x && x.dataUrl);
+    queueCount();
+    renderQueueThumbs();
   }
+
   async function domToPng(node){
     const s = new XMLSerializer();
     const clone = node.cloneNode(true);
@@ -684,6 +682,7 @@
     ctx.clearRect(0,0,w,h); ctx.drawImage(img,0,0);
     return c.toDataURL('image/png');
   }
+
   async function addCurrentToQueue(){
     const dataUrl = await domToPng(stage);
     const name = fldName.value || `Card ${state.queue.length+1}`;
@@ -692,8 +691,14 @@
     localStorage.setItem(QUEUE_KEY, JSON.stringify(state.queue));
     setDiag(`Queued: ${name}`);
   }
+
   q('#btn-queue').addEventListener('click', addCurrentToQueue);
-  q('#btn-clear-queue').addEventListener('click', ()=>{ state.queue = []; renderQueueThumbs(); queueCount(); localStorage.setItem(QUEUE_KEY, JSON.stringify(state.queue)); setDiag('Queue cleared.'); });
+  q('#btn-clear-queue').addEventListener('click', ()=>{
+    state.queue = [];
+    renderQueueThumbs(); queueCount();
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(state.queue));
+    setDiag('Queue cleared.');
+  });
 
   /* ---------- Sheet builder ---------- */
   function applyPreset(val){
@@ -757,13 +762,14 @@
   function initDeck(){
     deckPos();
     selElement.value='name'; syncInspector();
-    loadQueueFromStorage();
+    loadQueueFromStorage();  // fixed: ensure queue is initialized
     applySizes();
-    setDiag('v6.15 — text-size sliders added & persisted.');
+    setDiag('v6.16 — queue fixed, text-size sliders, robust CSV, side-panel scroll.');
   }
   initDeck();
 
-  window.addEventListener('beforeunload', ()=> localStorage.setItem('soa_queue_v615', JSON.stringify(state.queue)));
+  // keep queue persisted
+  window.addEventListener('beforeunload', ()=> localStorage.setItem('soa_queue_v616', JSON.stringify(state.queue)));
   </script>
 </body>
 </html>
