@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater (Classic Layout v6.31)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.32)</title>
 <style>
   :root{
     --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
@@ -81,7 +81,7 @@
 <body>
   <div class="app">
     <header>
-      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.31</span></h1>
+      <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.32</span></h1>
       <div class="row">
         <button id="btn-export-png" class="primary">Export PNG</button>
         <button id="btn-save-layout">Save Layout</button>
@@ -214,9 +214,11 @@
 
       <div class="section">
         <h3>Card Queue</h3>
-        <div class="row"><button id="btn-add-queue" class="primary">Add Current to Queue</button>
+        <div class="row">
+          <button id="btn-add-queue" class="primary">Add Current to Queue</button>
           <button id="btn-export-queue" class="primary">Export Queue PNGs</button>
-          <button id="btn-clear-queue" class="danger">Clear Queue</button></div>
+          <button id="btn-clear-queue" class="danger">Clear Queue</button>
+        </div>
         <div class="queue-thumbs" id="queueThumbs"></div>
       </div>
 
@@ -238,12 +240,10 @@
 const state = {
   csvRows: [],
   rowIndex: 0,
-  images: new Map(), // normalized -> objectURL
-  urlToFile: new Map(), // objectURL -> File
-  layout: null,
+  images: new Map(),       // normalized -> objectURL
+  urlToFile: new Map(),    // objectURL -> File
   guides: false,
   art: { x:0, y:0, scale:1, pad:0 },
-  frameUrl: null,
   queue: []
 };
 
@@ -274,11 +274,10 @@ const artY = q('#artY');
 const artScale = q('#artScale');
 const artPad = q('#artPad');
 
-const diag = q('#diag');
-const setDiag = (msg)=>{ if(diag) diag.textContent = msg; };
+const setDiag = (msg)=>{ const d=q('#diag'); if(d) d.textContent = msg; };
 const normalize = s => String(s||'').toLowerCase().replace(/\.[^.]+$/,'').replace(/[^a-z0-9]/g,'');
 
-/* ------- CSV (multiline-safe parser) ------- */
+/* ------- CSV (multiline-safe) ------- */
 function sniffDelim(sample){
   const head = sample.split(/\r?\n/).slice(0,5).join('\n');
   const counts = { ',':(head.match(/,/g)||[]).length, ';':(head.match(/;/g)||[]).length, '\t':(head.match(/\t/g)||[]).length, '|':(head.match(/\|/g)||[]).length };
@@ -337,7 +336,7 @@ q('#imgFiles').addEventListener('change', ev=>{
 q('#frameFile').addEventListener('change', ev=>{
   const f=ev.target.files[0]; if(!f) return;
   const url=URL.createObjectURL(f);
-  state.frameUrl=url; frameTpl.src=url; frameTpl.style.display='block';
+  frameTpl.src=url; frameTpl.style.display='block';
   state.urlToFile.set(url, f);
   setDiag('Frame template loaded — transparency recommended.');
 });
@@ -345,10 +344,10 @@ q('#frameOpacity').addEventListener('input', e=>{ frameTpl.style.opacity = (+e.t
 q('#frameZ').addEventListener('change', e=>{
   const above = e.target.value === 'above';
   frameTpl.style.zIndex = above ? 6 : 3;
-  artBox.style.zIndex = above ? 4 : 6;
+  artBox.style.zIndex  = above ? 4 : 6;
 });
 
-/* ------- Apply CSV row to canvas ------- */
+/* ------- Apply CSV row ------- */
 function applyRow(){
   const r = state.csvRows[state.rowIndex] || null;
 
@@ -366,12 +365,11 @@ function applyRow(){
 
   renderFields();
 
-  // Art match
   const artKeyRaw = pickFuzzy(r,['Art','Artwork','Image','ArtFile']) || fldName.value || '';
   const variants = [ String(artKeyRaw).toLowerCase().replace(/\.[^.]+$/,''), normalize(artKeyRaw) ];
   let hit=null; for(const v of variants){ if(state.images.has(v)){ hit=state.images.get(v); break; } }
   if(hit){ art.src = hit; setDiag('Matched art: '+artKeyRaw); } else { art.removeAttribute('src'); setDiag('No art match for '+artKeyRaw); }
-  fitArtBox(); // reset transforms per row
+  fitArtBox();
 }
 function renderFields(){
   q('#name').textContent = fldName.value || 'Name';
@@ -404,7 +402,7 @@ artScale.addEventListener('input', e=>{ state.art.scale = (+e.target.value)/100;
 artPad.addEventListener('input', e=>{ state.art.pad = +e.target.value; applyArt(); });
 q('#fitArt').addEventListener('click', fitArtBox);
 
-// Drag handle for art
+/* Drag art */
 let draggingArt=false, startX=0, startY=0, sX=0, sY=0;
 artHandle.addEventListener('mousedown', e=>{
   draggingArt=true; startX=e.clientX; startY=e.clientY; sX=state.art.x; sY=state.art.y; e.preventDefault();
@@ -414,7 +412,7 @@ window.addEventListener('mousemove', e=>{
 });
 window.addEventListener('mouseup', ()=> draggingArt=false);
 
-/* ------- Layout inspector (drag overlay) ------- */
+/* ------- Inspector overlay ------- */
 const elements = { name:q('#name'), type:q('#type'), rules:q('#rules'), flavor:q('#flavor'), bMOV, bATK, bHP, bCOST };
 const selElement = q('#selElement');
 const posX = q('#posX'), posY=q('#posY'), posW=q('#posW'), posH=q('#posH');
@@ -460,7 +458,7 @@ q('#toggleGuides').addEventListener('click', ()=>{
   setDiag('Guides '+(state.guides?'on':'off'));
 });
 
-/* ------- Save/Load Layout (localStorage & JSON) ------- */
+/* ------- Save/Load Layout ------- */
 function captureLayout(){
   const pick=(el)=>({left:el.style.left||el.offsetLeft+'px', top:el.style.top||el.offsetTop+'px', width:el.style.width||el.offsetWidth+'px', height:el.style.height||el.offsetHeight+'px'});
   return {
@@ -478,12 +476,12 @@ function applyLayout(layout){
   if(layout.frame){ frameTpl.style.opacity = layout.frame.opacity; frameTpl.style.zIndex = layout.frame.z; }
   syncInspector();
 }
-q('#btn-save-layout').addEventListener('click', ()=>{ localStorage.setItem('soa_layout_v631', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
-q('#btn-load-layout').addEventListener('click', ()=>{ const raw=localStorage.getItem('soa_layout_v631'); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); });
-q('#btn-reset').addEventListener('click', ()=>{ localStorage.removeItem('soa_layout_v631'); location.reload(); });
+q('#btn-save-layout').addEventListener('click', ()=>{ localStorage.setItem('soa_layout_v632', JSON.stringify(captureLayout())); setDiag('Layout saved.'); });
+q('#btn-load-layout').addEventListener('click', ()=>{ const raw=localStorage.getItem('soa_layout_v632'); if(!raw){ setDiag('No saved layout.'); return; } applyLayout(JSON.parse(raw)); setDiag('Layout loaded.'); });
+q('#btn-reset').addEventListener('click', ()=>{ localStorage.removeItem('soa_layout_v632'); location.reload(); });
 q('#btn-export-json').addEventListener('click', ()=>{
   const blob = new Blob([JSON.stringify(captureLayout(), null, 2)], {type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v631.json'; a.click();
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v632.json'; a.click();
 });
 q('#importJson').addEventListener('change', ev=>{
   const f=ev.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{ try{ applyLayout(JSON.parse(fr.result)); setDiag('Imported layout JSON.'); }catch(e){ setDiag('Invalid JSON.'); } }; fr.readAsText(f);
@@ -493,55 +491,88 @@ q('#importJson').addEventListener('change', ev=>{
 q('#prev').addEventListener('click', ()=>{ if(state.rowIndex>0){ state.rowIndex--; applyRow(); deckPos(); }});
 q('#next').addEventListener('click', ()=>{ if(state.rowIndex < state.csvRows.length-1){ state.rowIndex++; applyRow(); deckPos(); }});
 
-/* ------- Export PNG (reliable renderer) ------- */
-const RENDER_TIMEOUT = 12000;
+/* ------- Reliable foreignObject renderer (hardened) ------- */
+const raf = () => new Promise(res => requestAnimationFrame(res));
+const pause = (ms=0) => new Promise(res => setTimeout(res, ms));
 const fileToDataURL = file => new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(file)});
+
 async function inlineImg(img){
   const src=img.getAttribute('src')||''; if(!src || src.startsWith('data:')) return false;
   const file=state.urlToFile.get(src);
   if(file){ img.src = await fileToDataURL(file); return true; }
-  try{ const blob=await fetch(src,{mode:'cors'}).then(r=>r.blob()); const fr=new FileReader(); const data=await new Promise(r=>{fr.onload=()=>r(fr.result); fr.readAsDataURL(blob)}); img.src=data; return true; }
+  try{ const blob=await fetch(src,{mode:'cors'}).then(r=>r.blob()); const fr=new FileReader(); const data=await new Promise(r=>{fr.onload=()=>r(fr.result); fr.readAsDataURL(blob);}); img.src=data; return true; }
   catch{ return false; }
 }
 async function inlineStageImages(){ const imgs=[...stage.querySelectorAll('img')]; for(const im of imgs){ await inlineImg(im); } }
-async function waitForImagesLoaded(root){
-  const imgs=[...root.querySelectorAll('img')];
-  await Promise.all(imgs.map(img=>new Promise(res=>{ if(img.complete) return res(); img.onload=()=>res(); img.onerror=()=>res(); })));
-}
-function collectInlineCSS(){ return [...document.querySelectorAll('style')].map(s=>s.textContent||'').join('\n'); }
-async function domToPng(node){
-  await inlineStageImages(); await waitForImagesLoaded(node);
+async function waitForImagesLoaded(root){ const imgs=[...root.querySelectorAll('img')]; await Promise.all(imgs.map(img=>new Promise(res=>{ if(img.complete) return res(); img.onload=()=>res(); img.onerror=()=>res(); }))); }
+const collectInlineCSS = () => [...document.querySelectorAll('style')].map(s=>s.textContent||'').join('\n');
+
+async function domToPng(node, {attempts=3} = {}){
   const w=node.offsetWidth, h=node.offsetHeight;
-  const clone=node.cloneNode(true);
-  clone.querySelector('#selEdit')?.remove();
-  const css = collectInlineCSS();
-  const xhtml = `<div xmlns="http://www.w3.org/1999/xhtml"><style>${css}</style>${clone.outerHTML}</div>`;
-  const svg  = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-    <foreignObject width="100%" height="100%">${xhtml}</foreignObject></svg>`;
-  const svgBlob = new Blob([svg], {type:'image/svg+xml;charset=utf-8'});
-  const svgUrl  = URL.createObjectURL(svgBlob);
-  const render = async (url) => new Promise((res,rej)=>{
-    const img=new Image(); const t=setTimeout(()=>rej(new Error('SVG rasterize timeout')), RENDER_TIMEOUT);
-    img.onload=()=>{ clearTimeout(t); const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high'; ctx.drawImage(img,0,0,w,h); res(c.toDataURL('image/png')); };
-    img.onerror=()=>{ clearTimeout(t); rej(new Error('SVG rasterize error')); };
-    img.src=url;
-  });
-  try{ return await render(svgUrl); }
-  catch(e){ await inlineStageImages(); await waitForImagesLoaded(node); return await render(svgUrl); }
+
+  // inline images on the live node
+  await inlineStageImages();
+  await waitForImagesLoaded(node);
+
+  for (let tryNo=1; tryNo<=attempts; tryNo++){
+    // fresh clone each attempt
+    const clone=node.cloneNode(true);
+    clone.querySelector('#selEdit')?.remove();
+
+    // defensive: ensure imgs in the clone are data URLs and eager decode
+    const imgs=[...clone.querySelectorAll('img')];
+    for(const im of imgs){
+      if(im.src && !im.src.startsWith('data:')){
+        try{
+          const resp=await fetch(im.src,{mode:'cors'});
+          const blob=await resp.blob();
+          const fr=new FileReader();
+          const data=await new Promise(r=>{fr.onload=()=>r(fr.result); fr.readAsDataURL(blob);});
+          im.src=data;
+        }catch{}
+      }
+      im.setAttribute('decoding','sync');
+      im.setAttribute('loading','eager');
+    }
+
+    const css = collectInlineCSS();
+    const xhtml = `<div xmlns="http://www.w3.org/1999/xhtml"><style>${css}</style>${clone.outerHTML}</div>`;
+    const svg   = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xhtml="http://www.w3.org/1999/xhtml" width="${w}" height="${h}">
+                     <foreignObject width="100%" height="100%">${xhtml}</foreignObject>
+                   </svg>`;
+    const svgBlob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'});
+    const svgUrl =URL.createObjectURL(svgBlob);
+
+    try{
+      await raf(); await pause(0); // let FF settle image decodes
+      const image=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>rej(new Error('SVG rasterize error')); i.src=svgUrl; });
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      const ctx=c.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+      ctx.drawImage(image,0,0,w,h);
+      return c.toDataURL('image/png');
+    }catch(e){
+      if(tryNo===attempts) throw e;
+      await pause(60); // backoff then retry with fresh clone/svg
+    }
+  }
+  throw new Error('SVG rasterize error');
 }
+
+/* ------- Export single card ------- */
 q('#btn-export-png').addEventListener('click', async ()=>{
   setDiag('Rendering PNG...');
   try{
-    const dataUrl = await domToPng(stage);
+    const dataUrl = await domToPng(stage,{attempts:3});
     const a=document.createElement('a'); a.href=dataUrl; a.download=(fldName.value||'card')+'.png'; a.click();
     setDiag('Exported PNG.');
   }catch(e){ setDiag('Render failed: '+(e.message||e)); }
 });
 
-/* ------- Card Queue ------- */
+/* ------- Card Queue (uses hardened renderer) ------- */
 q('#btn-add-queue').addEventListener('click', async ()=>{
   try{
-    const png=await domToPng(stage);
+    setDiag('Rendering for queue…');
+    const png = await domToPng(stage,{attempts:3});
     state.queue.push(png);
     const im=document.createElement('img'); im.src=png; q('#queueThumbs').appendChild(im);
     setDiag(`Queued (${state.queue.length}).`);
@@ -553,7 +584,7 @@ q('#btn-export-queue').addEventListener('click', ()=>{
   let i=1; for(const p of state.queue){ const a=document.createElement('a'); a.href=p; a.download=`card_${i++}.png`; a.click(); }
 });
 
-/* ------- Sheet Builder ------- */
+/* ------- TTS Sheet Builder ------- */
 function applyPreset(val){
   const cols=q('#sheetCols'), rows=q('#sheetRows'), w=q('#sheetW'), h=q('#sheetH'), name=q('#sheetName');
   if(val==='tts10x7'){ cols.value=10; rows.value=7; w.value=4096; h.value=4096; name.value='SoA_TTS_10x7'; }
@@ -561,7 +592,7 @@ function applyPreset(val){
   else if(val==='a2_7x5'){ cols.value=7; rows.value=5; w.value=5600; h.value=4000; name.value='SoA_7x5_5600x4000'; }
 }
 q('#sheetPreset').addEventListener('change', e=> applyPreset(e.target.value));
-async function renderCardToImage(){ return await domToPng(stage); }
+async function renderCardToImage(){ return await domToPng(stage,{attempts:3}); }
 
 q('#buildSheet').addEventListener('click', async ()=>{
   const cols=+q('#sheetCols').value, rows=+q('#sheetRows').value, W=+q('#sheetW').value, H=+q('#sheetH').value, pad=+q('#sheetPad').value;
@@ -581,7 +612,7 @@ q('#buildSheet').addEventListener('click', async ()=>{
       const dataUrl = await renderCardToImage();
       const img = await new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.src=dataUrl; });
       const x = pad + c*(cellW+pad), y = pad + r*(cellH+pad);
-      // fill each cell preserving aspect
+      // fill cell preserving aspect
       const s = Math.max(cellW/img.width, cellH/img.height);
       const drawW = Math.round(img.width*s), drawH = Math.round(img.height*s);
       const offX = x + Math.floor((cellW-drawW)/2), offY = y + Math.floor((cellH-drawH)/2);
@@ -599,7 +630,7 @@ q('#buildSheet').addEventListener('click', async ()=>{
 
 /* ------- Init ------- */
 renderFields(); fitArtBox(); selElement.value='name'; syncInspector();
-setDiag('Classic layout v6.31 loaded. CSV+Art+Frame fixes applied.');
+setDiag('Classic layout v6.32 loaded (hardened renderer).');
 </script>
 </body>
 </html>
