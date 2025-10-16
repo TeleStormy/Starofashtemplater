@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater (Classic Layout v6.34)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.35)</title>
 <style>
   :root{
     --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
@@ -75,7 +75,7 @@
 <body>
 <div class="app">
   <header>
-    <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.34</span></h1>
+    <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.35</span></h1>
     <div class="row">
       <button id="btn-export-png" class="primary">Export PNG</button>
       <button id="btn-save-layout">Save Layout</button>
@@ -199,6 +199,10 @@
       </div>
       <div class="row"><label>Start @ row</label><input id="sheetStart" type="number" value="0" style="width:80px"> <label>Count</label><input id="sheetCount" type="number" value="70" style="width:80px"></div>
       <div class="row"><label>Filename</label><input id="sheetName" type="text" value="SoA_TTS_10x7" style="width:200px"></div>
+      <div class="row">
+        <label class="pill">Use queued cards</label>
+        <input id="useQueue" type="checkbox" checked>
+      </div>
       <div class="row"><button id="buildSheet" class="primary">Build TTS Sheet (PNG)</button></div>
       <div class="sheet-preview" id="sheetPreview">Sheet preview ready</div>
     </div>
@@ -244,6 +248,7 @@ const setDiag = m => q('#diag').textContent = m;
 const normalize=s=>String(s||'').toLowerCase().replace(/\.[^.]+$/,'').replace(/[^a-z0-9]/g,'');
 
 function boundsInStage(el){const r=el.getBoundingClientRect(), s=stage.getBoundingClientRect(); return {x:r.left-s.left, y:r.top-s.top, w:r.width, h:r.height};}
+function deckPos(){q('#deckPos').textContent=`${state.csvRows.length?state.rowIndex+1:0} / ${state.csvRows.length}`;}
 
 /* --------------------- CSV --------------------- */
 function sniffDelim(sample){const h=sample.split(/\r?\n/).slice(0,5).join('\n');const c={',':(h.match(/,/g)||[]).length,';':(h.match(/;/g)||[]).length,'\t':(h.match(/\t/g)||[]).length,'|':(h.match(/\|/g)||[]).length};return Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0]||',';}
@@ -260,7 +265,6 @@ function parseCSV(text){
   return rows.filter(r=>r.some(v=>String(v).trim()!=='')).map(r=>{const o={}; header.forEach((h,i)=>o[h]=r[i]??''); return o;});
 }
 function pickFuzzy(r,ns){for(const n of ns){if(r[n]!=null&&String(r[n]).trim()!=='')return r[n];}for(const k in r){for(const n of ns){if(normalize(k).includes(normalize(n))&&String(r[k]).trim()!=='')return r[k];}}return '';}
-function deckPos(){q('#deckPos').textContent=`${state.csvRows.length?state.rowIndex+1:0} / ${state.csvRows.length}`;}
 q('#btn-load-csv').addEventListener('click',()=>q('#csvFile').click());
 q('#csvFile').addEventListener('change',ev=>{const f=ev.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{state.csvRows=parseCSV(fr.result);state.rowIndex=0;applyRow();deckPos();setDiag(`CSV parsed: ${state.csvRows.length} rows`);};fr.readAsText(f,'utf-8');});
 
@@ -280,7 +284,7 @@ q('#frameFile').addEventListener('change',ev=>{
 q('#frameOpacity').addEventListener('input',e=>frameTpl.style.opacity=(+e.target.value)/100);
 q('#frameZ').addEventListener('change',e=>{const above=e.target.value==='above'; frameTpl.style.zIndex=above?6:3; artBox.style.zIndex=above?4:6;});
 
-/* --------------------- Apply row --------------------- */
+/* --------------------- Apply row & render fields --------------------- */
 function applyRow(){
   const r=state.csvRows[state.rowIndex]||null;
   if(r){
@@ -289,7 +293,7 @@ function applyRow(){
     fldRules.value=pickFuzzy(r,['Rules','RulesText','rules','Text'])||fldRules.value;
     fldFlavor.value=pickFuzzy(r,['Flavor','FlavorText','flavor'])||fldFlavor.value;
     fldATK.value=pickFuzzy(r,['ATK','Attack','atk'])||fldATK.value;
-    fldHP.value=pickFuzzy(r,['HP','Health','hp'])||fldHP.value;
+    fldHP.value =pickFuzzy(r,['HP','Health','hp'])||fldHP.value;
     fldMOV.value=pickFuzzy(r,['MOV','Move','Movement','mov'])||fldMOV.value;
     fldCOST.value=pickFuzzy(r,['Cost','COST','cost'])||fldCOST.value;
 
@@ -310,37 +314,6 @@ function renderFields(){
 }
 [fldName,fldType,fldRules,fldFlavor,fldATK,fldHP,fldMOV,fldCOST].forEach(el=>el.addEventListener('input',renderFields));
 
-  /* ---------- Deck navigation ---------- */
-function safeApplyRowAndPos() {
-  applyRow();
-  deckPos();
-}
-
-// Buttons
-q('#prev').addEventListener('click', () => {
-  if (!state.csvRows.length) return;
-  if (state.rowIndex > 0) state.rowIndex--;
-  safeApplyRowAndPos();
-});
-
-q('#next').addEventListener('click', () => {
-  if (!state.csvRows.length) return;
-  if (state.rowIndex < state.csvRows.length - 1) state.rowIndex++;
-  safeApplyRowAndPos();
-});
-
-// Keyboard (Left/Right arrows)
-window.addEventListener('keydown', (e) => {
-  if (!state.csvRows.length) return;
-  if (e.key === 'ArrowLeft') {
-    if (state.rowIndex > 0) state.rowIndex--;
-    safeApplyRowAndPos();
-  } else if (e.key === 'ArrowRight') {
-    if (state.rowIndex < state.csvRows.length - 1) state.rowIndex++;
-    safeApplyRowAndPos();
-  }
-});
-
 /* --------------------- Art transforms --------------------- */
 function applyArt(){const p=state.art.pad; art.style.left=`calc(50% + ${state.art.x}px)`; art.style.top=`calc(50% + ${state.art.y}px)`; art.style.transform=`translate(-50%, -50%) scale(${state.art.scale})`; artBox.style.inset=`${80+p}px ${50+p}px ${210+p}px ${50+p}px`;}
 function fitArtBox(){state.art.x=0;state.art.y=0;state.art.scale=1;state.art.pad=0; artX.value=0;artY.value=0;artScale.value=100;artPad.value=0; applyArt();}
@@ -357,10 +330,10 @@ window.addEventListener('mouseup',()=>dragging=false);
 /* --------------------- Inspector --------------------- */
 const elements={name:q('#name'),type:q('#type'),rules:q('#rules'),flavor:q('#flavor'),bMOV,bATK,bHP,bCOST};
 const selElement=q('#selElement'), posX=q('#posX'),posY=q('#posY'),posW=q('#posW'),posH=q('#posH');
-function syncInspector(){const el=elements[selElement.value]; const b=boundsInStage(el); posX.value=Math.round(b.x);posY.value=Math.round(b.y);posW.value=Math.round(b.w);posH.value=Math.round(b.h);
+function boundsForInspector(){const el=elements[selElement.value]; const b=boundsInStage(el); posX.value=Math.round(b.x);posY.value=Math.round(b.y);posW.value=Math.round(b.w);posH.value=Math.round(b.h);
   selEdit.style.display='block'; selEdit.style.left=(b.x-2)+'px'; selEdit.style.top=(b.y-2)+'px'; selEdit.style.width=(b.w+4)+'px'; selEdit.style.height=(b.h+4)+'px';}
-selElement.addEventListener('change',syncInspector);
-q('#applyLayout').addEventListener('click',()=>{const el=elements[selElement.value]; el.style.left=posX.value+'px'; el.style.top=posY.value+'px'; el.style.width=posW.value+'px'; el.style.height=posH.value+'px'; syncInspector();});
+selElement.addEventListener('change',boundsForInspector);
+q('#applyLayout').addEventListener('click',()=>{const el=elements[selElement.value]; el.style.left=posX.value+'px'; el.style.top=posY.value+'px'; el.style.width=posW.value+'px'; el.style.height=posH.value+'px'; boundsForInspector();});
 /* drag selected */
 let draggingSel=false, st={x:0,y:0}, est={x:0,y:0};
 selEdit.addEventListener('mousedown',e=>{draggingSel=true;st={x:e.clientX,y:e.clientY};const el=elements[selElement.value];const b=boundsInStage(el);est={x:b.x,y:b.y};e.preventDefault();});
@@ -372,20 +345,28 @@ q('#toggleGuides').addEventListener('click',()=>{state.guides=!state.guides;stag
 function captureLayout(){const pick=el=>({left:el.style.left||el.offsetLeft+'px',top:el.style.top||el.offsetTop+'px',width:el.style.width||el.offsetWidth+'px',height:el.style.height||el.offsetHeight+'px'});
   return {name:pick(elements.name),type:pick(elements.type),rules:pick(elements.rules),flavor:pick(elements.flavor),bMOV:pick(elements.bMOV),bATK:pick(elements.bATK),bHP:pick(elements.bHP),bCOST:pick(elements.bCOST),
           art:{...state.art},frame:{opacity:frameTpl.style.opacity||0.95,z:frameTpl.style.zIndex||6}};}
-function applyLayout(L){if(!L)return;['name','type','rules','flavor','bMOV','bATK','bHP','bCOST'].forEach(k=>{const l=L[k],el=elements[k]; if(l&&el){el.style.left=l.left;el.style.top=l.top;el.style.width=l.width;el.style.height=l.height;}}); if(L.art){state.art=L.art;artX.value=state.art.x;artY.value=state.art.y;artScale.value=state.art.scale*100;artPad.value=state.art.pad;applyArt();} if(L.frame){frameTpl.style.opacity=L.frame.opacity;frameTpl.style.zIndex=L.frame.z;} syncInspector();}
-q('#btn-save-layout').addEventListener('click',()=>{localStorage.setItem('soa_layout_v634',JSON.stringify(captureLayout()));setDiag('Layout saved.');});
-q('#btn-load-layout').addEventListener('click',()=>{const raw=localStorage.getItem('soa_layout_v634'); if(!raw)return setDiag('No saved layout.'); applyLayout(JSON.parse(raw)); setDiag('Layout loaded.');});
-q('#btn-reset').addEventListener('click',()=>{localStorage.removeItem('soa_layout_v634'); location.reload();});
-q('#btn-export-json').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v634.json'; a.click();});
+function applyLayout(L){if(!L)return;['name','type','rules','flavor','bMOV','bATK','bHP','bCOST'].forEach(k=>{const l=L[k],el=elements[k]; if(l&&el){el.style.left=l.left;el.style.top=l.top;el.style.width=l.width;el.style.height=l.height;}}); if(L.art){state.art=L.art;artX.value=state.art.x;artY.value=state.art.y;artScale.value=state.art.scale*100;artPad.value=state.art.pad;applyArt();} if(L.frame){frameTpl.style.opacity=L.frame.opacity;frameTpl.style.zIndex=L.frame.z;} boundsForInspector();}
+q('#btn-save-layout').addEventListener('click',()=>{localStorage.setItem('soa_layout_v635',JSON.stringify(captureLayout()));setDiag('Layout saved.');});
+q('#btn-load-layout').addEventListener('click',()=>{const raw=localStorage.getItem('soa_layout_v635'); if(!raw)return setDiag('No saved layout.'); applyLayout(JSON.parse(raw)); setDiag('Layout loaded.');});
+q('#btn-reset').addEventListener('click',()=>{localStorage.removeItem('soa_layout_v635'); location.reload();});
+q('#btn-export-json').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v635.json'; a.click();});
 q('#importJson').addEventListener('change',ev=>{const f=ev.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{try{applyLayout(JSON.parse(fr.result));setDiag('Imported layout JSON.');}catch{setDiag('Invalid JSON.');}};fr.readAsText(f);});
 
+/* --------------------- Deck navigation --------------------- */
+function safeApplyRowAndPos(){ applyRow(); deckPos(); }
+q('#prev').addEventListener('click',()=>{ if(!state.csvRows.length) return; if(state.rowIndex>0) state.rowIndex--; safeApplyRowAndPos(); });
+q('#next').addEventListener('click',()=>{ if(!state.csvRows.length) return; if(state.rowIndex<state.csvRows.length-1) state.rowIndex++; safeApplyRowAndPos(); });
+window.addEventListener('keydown',e=>{ if(!state.csvRows.length) return;
+  if(e.key==='ArrowLeft'){ if(state.rowIndex>0) state.rowIndex--; safeApplyRowAndPos(); }
+  else if(e.key==='ArrowRight'){ if(state.rowIndex<state.csvRows.length-1) state.rowIndex++; safeApplyRowAndPos(); }
+});
+
 /* --------------------- Manual Canvas Renderer --------------------- */
-/* Create an Image from a src, trying to convert local objectURL to data: to avoid taint */
+function loadImage(url){return new Promise((res,rej)=>{const im=new Image(); im.onload=()=>res(im); im.onerror=()=>rej(new Error('image load failed')); im.src=url;});}
 function imageFromSrc(src){
   return new Promise(async (resolve,reject)=>{
     try{
       if(!src){ resolve(null); return; }
-      let finalSrc = src;
       const file = state.urlToFile.get(src);
       if(file){
         const fr=new FileReader();
@@ -393,12 +374,8 @@ function imageFromSrc(src){
         fr.readAsDataURL(file);
         return;
       }
-      // fall back to normal
-      const im=new Image();
-      im.crossOrigin='anonymous';
-      im.onload=()=>resolve(im);
-      im.onerror=()=>reject(new Error('image load failed'));
-      im.src=finalSrc;
+      const im=new Image(); im.crossOrigin='anonymous';
+      im.onload=()=>resolve(im); im.onerror=()=>reject(new Error('image load failed')); im.src=src;
     }catch(e){ reject(e); }
   });
 }
@@ -408,8 +385,7 @@ function drawWrappedText(ctx, text, x, y, maxW, lineH){
     const words=base.split(/\s+/); let line='';
     for(const w of words){
       const test=line? (line+' '+w) : w;
-      const m=ctx.measureText(test);
-      if(m.width>maxW && line){ ctx.fillText(line, x, y); y+=lineH; line=w; }
+      if(ctx.measureText(test).width>maxW && line){ ctx.fillText(line, x, y); y+=lineH; line=w; }
       else line=test;
     }
     ctx.fillText(line, x, y); y+=lineH;
@@ -419,195 +395,119 @@ async function renderCardCanvas(){
   const w=stage.offsetWidth, h=stage.offsetHeight;
   const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d');
   ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
-
-  // Background
   ctx.fillStyle='#111'; ctx.fillRect(0,0,w,h);
 
-  // Optional frame below art?
   const frameBelow = (q('#frameZ').value === 'below');
-
-  // Images
   const artImg = await imageFromSrc(art.getAttribute('src')||'');
   const frameImg = await imageFromSrc(frameTpl.getAttribute('src')||'');
 
-  // Calculate artBox clip from pad
   const pad=state.art.pad||0;
   const clip = { x:50+pad, y:80+pad, w: w - (50+pad) - (50+pad), h: h - (80+pad) - (210+pad) };
 
-  // Draw functions
-  const drawFrame = ()=>{
-    if(!frameImg) return;
-    const op = parseFloat(frameTpl.style.opacity||'0.95');
-    ctx.save(); ctx.globalAlpha = isNaN(op)?0.95:op;
-    ctx.drawImage(frameImg, 0, 0, w, h);
-    ctx.restore();
-  };
-  const drawArt = ()=>{
-    if(!artImg) return;
-    const scale=state.art.scale||1;
-    const imgW=artImg.naturalWidth||artImg.width||w;
-    const imgH=artImg.naturalHeight||artImg.height||h;
+  const drawFrame = ()=>{ if(!frameImg) return; const op=parseFloat(frameTpl.style.opacity||'0.95'); ctx.save(); ctx.globalAlpha=isNaN(op)?0.95:op; ctx.drawImage(frameImg,0,0,w,h); ctx.restore(); };
+  const drawArt = ()=>{ if(!artImg) return; const scale=state.art.scale||1;
+    const imgW=artImg.naturalWidth||artImg.width||w, imgH=artImg.naturalHeight||artImg.height||h;
     const drawW=imgW*scale, drawH=imgH*scale;
     const cx=w/2 + (state.art.x||0), cy=h/2 + (state.art.y||0);
-    const dx = Math.round(cx - drawW/2);
-    const dy = Math.round(cy - drawH/2);
-    // clip to artBox
-    ctx.save();
-    ctx.beginPath(); ctx.rect(clip.x, clip.y, clip.w, clip.h); ctx.clip();
-    ctx.drawImage(artImg, dx, dy, drawW, drawH);
-    ctx.restore();
-  };
+    const dx = Math.round(cx - drawW/2), dy = Math.round(cy - drawH/2);
+    ctx.save(); ctx.beginPath(); ctx.rect(clip.x,clip.y,clip.w,clip.h); ctx.clip(); ctx.drawImage(artImg,dx,dy,drawW,drawH); ctx.restore(); };
 
-  if(frameBelow) drawFrame();
-  drawArt();
-  if(!frameBelow) drawFrame();
+  if(frameBelow) drawFrame(); drawArt(); if(!frameBelow) drawFrame();
 
-  // Text styles
-  function textStyleFrom(el, extra={}) {
-    const cs=getComputedStyle(el);
-    const size=parseFloat(cs.fontSize)||16;
-    const lineH=(parseFloat(cs.lineHeight)|| (size*1.35));
-    const weight=cs.fontWeight||'400';
-    const family=cs.fontFamily||'system-ui';
-    const style=cs.fontStyle||'normal';
-    const color=cs.color||'#fff';
-    const font=`${style} ${weight} ${size}px ${family}`;
-    const b=boundsInStage(el);
-    return {font, color, lineH, box:b, ...extra};
-  }
+  function textStyleFrom(el){const cs=getComputedStyle(el); const size=parseFloat(cs.fontSize)||16; const lineH=(parseFloat(cs.lineHeight)|| (size*1.35));
+    const weight=cs.fontWeight||'400'; const family=cs.fontFamily||'system-ui'; const style=cs.fontStyle||'normal'; const color=cs.color||'#fff'; const font=`${style} ${weight} ${size}px ${family}`; const box=boundsInStage(el); return {font,color,lineH,box};}
 
-  // Name
-  {
-    const el=q('#name'), {font,color,lineH,box}=textStyleFrom(el);
-    ctx.save(); ctx.font=font; ctx.fillStyle=color; ctx.textBaseline='top';
-    const pad=2;
-    drawWrappedText(ctx, fldName.value||'Name', box.x+pad, box.y+pad, box.w-2*pad, lineH);
-    ctx.restore();
-  }
+  { const el=q('#name'), {font,color,lineH,box}=textStyleFrom(el); ctx.save(); ctx.font=font; ctx.fillStyle=color; ctx.textBaseline='top'; drawWrappedText(ctx, fldName.value||'Name', box.x+2, box.y+2, box.w-4, lineH); ctx.restore(); }
+  { const el=q('#type'), {font,color,lineH,box}=textStyleFrom(el); ctx.save(); ctx.font=font; ctx.fillStyle=color; ctx.textBaseline='top'; drawWrappedText(ctx, fldType.value||'Type — Subtype', box.x, box.y, box.w, lineH); ctx.restore(); }
+  { const el=q('#rules'), {font,color,lineH,box}=textStyleFrom(el); ctx.save(); ctx.font=font; ctx.fillStyle=color; ctx.textBaseline='top'; drawWrappedText(ctx, fldRules.value||'Rules text...', box.x+8, box.y+8, box.w-16, lineH); ctx.restore(); }
+  { const el=q('#flavor'), {font,color,lineH,box}=textStyleFrom(el); ctx.save(); ctx.font=font; ctx.fillStyle=color; ctx.textBaseline='alphabetic'; drawWrappedText(ctx, fldFlavor.value||'“Flavor text...”', box.x, box.y+box.h-lineH, box.w, lineH); ctx.restore(); }
 
-  // Type (white, a bit smaller than name)
-  {
-    const el=q('#type'), {font,color,lineH,box}=textStyleFrom(el);
-    ctx.save(); ctx.font=font; ctx.fillStyle=color; ctx.textBaseline='top';
-    drawWrappedText(ctx, fldType.value||'Type — Subtype', box.x, box.y, box.w, lineH);
-    ctx.restore();
-  }
-
-  // Rules (wrap + newlines)
-  {
-    const el=q('#rules'), {font,color,lineH,box}=textStyleFrom(el);
-    ctx.save(); ctx.font=font; ctx.fillStyle=color; ctx.textBaseline='top';
-    drawWrappedText(ctx, fldRules.value||'Rules text...', box.x+8, box.y+8, box.w-16, lineH);
-    ctx.restore();
-  }
-
-  // Flavor (italic smaller)
-  {
-    const el=q('#flavor'), {font,color,lineH,box}=textStyleFrom(el);
-    ctx.save(); ctx.font=font; ctx.fillStyle=color; ctx.textBaseline='alphabetic';
-    drawWrappedText(ctx, fldFlavor.value||'“Flavor text...”', box.x, box.y+box.h- lineH, box.w, lineH);
-    ctx.restore();
-  }
-
-  // Badges (circles with value)
-  function drawBadge(el, value){
-    const b=boundsInStage(el);
-    const r=Math.min(b.w,b.h)/2;
-    const cx=b.x+b.w/2, cy=b.y+b.h/2;
-    ctx.save();
-    ctx.fillStyle='rgba(0,0,0,.35)';
-    ctx.strokeStyle='rgba(255,255,255,.15)';
-    ctx.lineWidth=2;
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle='#fff';
-    ctx.font='800 22px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial';
-    ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(String(value??''), cx, cy+1);
-    ctx.restore();
-  }
-  drawBadge(bATK, fldATK.value||'1');
-  drawBadge(bHP,  fldHP.value ||'1');
-  drawBadge(bMOV, fldMOV.value||'1');
-  drawBadge(bCOST,fldCOST.value||'1');
+  function drawBadge(el, value){const b=boundsInStage(el); const r=Math.min(b.w,b.h)/2; const cx=b.x+b.w/2, cy=b.y+b.h/2;
+    ctx.save(); ctx.fillStyle='rgba(0,0,0,.35)'; ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.font='800 22px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(String(value??''), cx, cy+1); ctx.restore(); }
+  drawBadge(bATK, fldATK.value||'1'); drawBadge(bHP, fldHP.value||'1'); drawBadge(bMOV, fldMOV.value||'1'); drawBadge(bCOST, fldCOST.value||'1');
 
   return c;
 }
 
-/* --------------------- Export & Queue (use manual renderer) --------------------- */
+/* --------------------- Export & Queue --------------------- */
 q('#btn-export-png').addEventListener('click', async ()=>{
-  try{
-    setDiag('Rendering PNG…');
-    const canvas = await renderCardCanvas();
-    const a=document.createElement('a'); a.href=canvas.toDataURL('image/png'); a.download=(fldName.value||'card')+'.png'; a.click();
-    setDiag('Exported PNG (manual renderer).');
-  }catch(e){ setDiag('Render failed: '+(e.message||e)); }
+  try{ setDiag('Rendering PNG…'); const canvas=await renderCardCanvas(); const a=document.createElement('a'); a.href=canvas.toDataURL('image/png'); a.download=(fldName.value||'card')+'.png'; a.click(); setDiag('Exported PNG (manual renderer).'); }
+  catch(e){ setDiag('Render failed: '+(e.message||e)); }
 });
-
 q('#btn-add-queue').addEventListener('click', async ()=>{
-  try{
-    setDiag('Rendering for queue…');
-    const canvas = await renderCardCanvas();
-    const data = canvas.toDataURL('image/png');
-    state.queue.push(data);
-    const im=document.createElement('img'); im.src=data; q('#queueThumbs').appendChild(im);
-    setDiag(`Queued (${state.queue.length}). Render success: all layers inlined to data URIs`);
-  }catch(e){ setDiag('Queue render failed: '+(e.message||e)); }
+  try{ setDiag('Rendering for queue…'); const canvas=await renderCardCanvas(); const data=canvas.toDataURL('image/png'); state.queue.push(data); const im=document.createElement('img'); im.src=data; q('#queueThumbs').appendChild(im); setDiag(`Queued (${state.queue.length}). Render success: all layers inlined.`); }
+  catch(e){ setDiag('Queue render failed: '+(e.message||e)); }
 });
 q('#btn-clear-queue').addEventListener('click', ()=>{ state.queue=[]; q('#queueThumbs').innerHTML=''; setDiag('Queue cleared.'); });
-q('#btn-export-queue').addEventListener('click', ()=>{
-  if(!state.queue.length){ setDiag('Queue empty.'); return; }
-  let i=1; for(const p of state.queue){ const a=document.createElement('a'); a.href=p; a.download=`card_${i++}.png`; a.click(); }
-});
+q('#btn-export-queue').addEventListener('click', ()=>{ if(!state.queue.length){ setDiag('Queue empty.'); return; } let i=1; for(const p of state.queue){ const a=document.createElement('a'); a.href=p; a.download=`card_${i++}.png`; a.click(); }});
 
-/* --------------------- TTS Sheet (manual renderer) --------------------- */
+/* --------------------- TTS Sheet (CSV or Queue) --------------------- */
 function applyPreset(val){const cols=q('#sheetCols'),rows=q('#sheetRows'),w=q('#sheetW'),h=q('#sheetH'),name=q('#sheetName');
   if(val==='tts10x7'){cols.value=10;rows.value=7;w.value=4096;h.value=4096;name.value='SoA_TTS_10x7';}
   else if(val==='tts7x10'){cols.value=7;rows.value=10;w.value=4096;h.value=4096;name.value='SoA_TTS_7x10';}
-  else if(val==='a2_7x5'){cols.value=7;rows.value=5;w.value=5600;h.value=4000;name.value='SoA_7x5_5600x4000';} }
+  else if(val==='a2_7x5'){cols.value=7;rows.value=5;w.value=5600;h.value=4000;name.value='SoA_7x5_5600x4000';}}
 q('#sheetPreset').addEventListener('change',e=>applyPreset(e.target.value));
 
 q('#buildSheet').addEventListener('click', async ()=>{
   try{
     setDiag('Building sheet…');
+
     const cols=+q('#sheetCols').value, rows=+q('#sheetRows').value, W=+q('#sheetW').value, H=+q('#sheetH').value, pad=+q('#sheetPad').value;
-    const start=+q('#sheetStart').value, count=+q('#sheetCount').value; const bg=q('#sheetBG').value; const fname=q('#sheetName').value||'SoA_TTS_Sheet';
-    const cellW = Math.floor((W - (cols+1)*pad)/cols), cellH = Math.floor((H - (rows+1)*pad)/rows);
+    const start=+q('#sheetStart').value, countIn=+q('#sheetCount').value, bg=q('#sheetBG').value, fname=q('#sheetName').value||'SoA_TTS_Sheet';
+    const useQueue = q('#useQueue')?.checked;
 
+    const cellW=Math.floor((W-(cols+1)*pad)/cols), cellH=Math.floor((H-(rows+1)*pad)/rows);
     const sheet=document.createElement('canvas'); sheet.width=W; sheet.height=H; const ctx=sheet.getContext('2d');
-    if(bg==='transparent'){ ctx.clearRect(0,0,W,H);} else { ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);}    
+    if(bg==='transparent'){ ctx.clearRect(0,0,W,H);} else { ctx.fillStyle=bg; ctx.fillRect(0,0,W,H); }
 
-    const saved={rowIndex:state.rowIndex, art:{...state.art}};
-    let idx=start, placed=0;
+    let placed=0;
 
-    for(let r=0;r<rows;r++){
-      for(let c=0;c<cols;c++){
-        if(placed>=count || idx>=state.csvRows.length) break;
-        state.rowIndex = idx; applyRow();
-        const canvas = await renderCardCanvas();
-        const img = await new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.src=canvas.toDataURL('image/png'); });
-        const x = pad + c*(cellW+pad), y = pad + r*(cellH+pad);
-        // fill cell (cover)
-        const s = Math.max(cellW/img.width, cellH/img.height);
-        const dw = Math.round(img.width*s), dh = Math.round(img.height*s);
-        const ox = x + Math.floor((cellW-dw)/2), oy = y + Math.floor((cellH-dh)/2);
-        ctx.drawImage(img, ox, oy, dw, dh);
-        idx++; placed++;
+    if(useQueue && state.queue.length){
+      const max=Math.min(state.queue.length, cols*rows, countIn||Infinity);
+      const imgs=await Promise.all(state.queue.slice(0,max).map(url=>loadImage(url)));
+      let i=0;
+      for(let r=0;r<rows && i<imgs.length;r++){
+        for(let c=0;c<cols && i<imgs.length;c++){
+          const img=imgs[i++]; const x=pad+c*(cellW+pad), y=pad+r*(cellH+pad);
+          const s=Math.max(cellW/img.width, cellH/img.height), dw=Math.round(img.width*s), dh=Math.round(img.height*s);
+          const ox=x+Math.floor((cellW-dw)/2), oy=y+Math.floor((cellH-dh)/2);
+          ctx.drawImage(img,ox,oy,dw,dh); placed++;
+        }
       }
+      q('#sheetPreview').textContent=`Built ${placed} queued cards → ${fname}.png (${W}×${H})`;
+      setDiag(`Sheet built from queue: ${placed} cards.`);
+    } else {
+      const saved={rowIndex:state.rowIndex, art:{...state.art}};
+      let idx=start, placedCsv=0, maxCsv=countIn||Infinity;
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          if(placedCsv>=maxCsv || idx>=state.csvRows.length) break;
+          state.rowIndex=idx; applyRow();
+          const canvas=await renderCardCanvas();
+          const img=await loadImage(canvas.toDataURL('image/png'));
+          const x=pad+c*(cellW+pad), y=pad+r*(cellH+pad);
+          const s=Math.max(cellW/img.width, cellH/img.height), dw=Math.round(img.width*s), dh=Math.round(img.height*s);
+          const ox=x+Math.floor((cellW-dw)/2), oy=y+Math.floor((cellH-dh)/2);
+          ctx.drawImage(img,ox,oy,dw,dh);
+          idx++; placedCsv++;
+        }
+      }
+      state.rowIndex=saved.rowIndex; state.art=saved.art; applyArt();
+      q('#sheetPreview').textContent=`Built ${placedCsv} cards → ${fname}.png (${W}×${H})`;
+      setDiag(`Sheet built: ${placedCsv} cards (CSV render).`);
     }
 
-    state.rowIndex = saved.rowIndex; state.art = saved.art; applyArt();
-    const out = sheet.toDataURL('image/png');
-    const a=document.createElement('a'); a.href=out; a.download=fname+'.png'; a.click();
-    q('#sheetPreview').textContent = `Built ${placed} cards → ${fname}.png (${W}×${H})`;
-    setDiag(`Sheet built: ${placed} cards (manual renderer).`);
+    const out=sheet.toDataURL('image/png'); const a=document.createElement('a'); a.href=out; a.download=fname+'.png'; a.click();
   }catch(e){ setDiag('Sheet build failed: '+(e.message||e)); }
 });
 
 /* --------------------- Init --------------------- */
 (function init(){
   renderFields(); fitArtBox();
-  (q('#selElement').value='name'); syncInspector();
-  setDiag('Classic layout v6.34 loaded (manual canvas renderer).');
+  (q('#selElement').value='name'); boundsForInspector();
+  setDiag('Classic layout v6.35 loaded (manual canvas renderer, queue → TTS).');
 })();
 </script>
 </body>
