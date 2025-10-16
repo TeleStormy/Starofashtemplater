@@ -310,6 +310,37 @@ function renderFields(){
 }
 [fldName,fldType,fldRules,fldFlavor,fldATK,fldHP,fldMOV,fldCOST].forEach(el=>el.addEventListener('input',renderFields));
 
+  /* ---------- Deck navigation ---------- */
+function safeApplyRowAndPos() {
+  applyRow();
+  deckPos();
+}
+
+// Buttons
+q('#prev').addEventListener('click', () => {
+  if (!state.csvRows.length) return;
+  if (state.rowIndex > 0) state.rowIndex--;
+  safeApplyRowAndPos();
+});
+
+q('#next').addEventListener('click', () => {
+  if (!state.csvRows.length) return;
+  if (state.rowIndex < state.csvRows.length - 1) state.rowIndex++;
+  safeApplyRowAndPos();
+});
+
+// Keyboard (Left/Right arrows)
+window.addEventListener('keydown', (e) => {
+  if (!state.csvRows.length) return;
+  if (e.key === 'ArrowLeft') {
+    if (state.rowIndex > 0) state.rowIndex--;
+    safeApplyRowAndPos();
+  } else if (e.key === 'ArrowRight') {
+    if (state.rowIndex < state.csvRows.length - 1) state.rowIndex++;
+    safeApplyRowAndPos();
+  }
+});
+
 /* --------------------- Art transforms --------------------- */
 function applyArt(){const p=state.art.pad; art.style.left=`calc(50% + ${state.art.x}px)`; art.style.top=`calc(50% + ${state.art.y}px)`; art.style.transform=`translate(-50%, -50%) scale(${state.art.scale})`; artBox.style.inset=`${80+p}px ${50+p}px ${210+p}px ${50+p}px`;}
 function fitArtBox(){state.art.x=0;state.art.y=0;state.art.scale=1;state.art.pad=0; artX.value=0;artY.value=0;artScale.value=100;artPad.value=0; applyArt();}
