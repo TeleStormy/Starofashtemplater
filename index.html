@@ -3,12 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater (Classic Layout v6.33)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.34)</title>
 <style>
   :root{
     --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
-    --accent:#c0392b; --ash:#2b2b30; --blood:#8a1d1d; --flame:#b8571b; --border:#2b2b30;
-    --ok:#57d38a; --bad:#ff6b6b;
+    --accent:#c0392b; --border:#2b2b30; --ok:#57d38a; --bad:#ff6b6b;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -36,7 +35,7 @@
   .pill{border:1px solid var(--border); padding:2px 8px; border-radius:999px; font-size:11px; color:var(--muted)}
   .small{font-size:12px; color:var(--muted)}
 
-  /* Center canvas */
+  /* Center canvas (unchanged layout) */
   .center{position:relative}
   .stage{position:relative; margin:20px auto; width:744px; height:1039px; background:#111; border:1px solid var(--border); border-radius:16px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,.5)}
   .card-bg{position:absolute; inset:0; background:linear-gradient(180deg,#201f22,#141316)}
@@ -51,7 +50,7 @@
               font-size:12px; letter-spacing:.3px; cursor:grab; z-index:6}
   .art-handle:active{cursor:grabbing}
 
-  /* Text / badges — above frame */
+  /* Text / badges — remain above frame */
   .name{position:absolute; left:89px; top:204px; right:24px; font-weight:800; font-size:34px; z-index:1200}
   .type-line{position:absolute; left:90px; top:239px; right:24px; color:#fff; font-size:20px; z-index:1200}
   .rules{position:absolute; left:238px; top:703px; right:24px; min-height:150px; font-size:16px; line-height:1.45; background:rgba(255,255,255,.03); padding:12px 14px; border-radius:10px; border:1px solid var(--border);
@@ -76,7 +75,7 @@
 <body>
 <div class="app">
   <header>
-    <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.33</span></h1>
+    <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.34</span></h1>
     <div class="row">
       <button id="btn-export-png" class="primary">Export PNG</button>
       <button id="btn-save-layout">Save Layout</button>
@@ -232,7 +231,7 @@
 const state = {
   csvRows: [], rowIndex: 0,
   images: new Map(),        // normalized -> objectURL
-  urlToFile: new Map(),     // objectURL -> File (for easy dataURL)
+  urlToFile: new Map(),     // objectURL -> File (for data URL)
   art: { x:0, y:0, scale:1, pad:0 },
   queue: [], guides:false
 };
@@ -241,8 +240,10 @@ const stage=q('#stage'), art=q('#art'), artBox=q('#artBox'), frameTpl=q('#frameT
 const fldName=q('#fldName'), fldType=q('#fldType'), fldRules=q('#fldRules'), fldFlavor=q('#fldFlavor'), fldATK=q('#fldATK'), fldHP=q('#fldHP'), fldMOV=q('#fldMOV'), fldCOST=q('#fldCOST');
 const bATK=q('#bATK'), bHP=q('#bHP'), bMOV=q('#bMOV'), bCOST=q('#bCOST');
 const artX=q('#artX'), artY=q('#artY'), artScale=q('#artScale'), artPad=q('#artPad');
-const setDiag=m=>q('#diag').textContent=m;
+const setDiag = m => q('#diag').textContent = m;
 const normalize=s=>String(s||'').toLowerCase().replace(/\.[^.]+$/,'').replace(/[^a-z0-9]/g,'');
+
+function boundsInStage(el){const r=el.getBoundingClientRect(), s=stage.getBoundingClientRect(); return {x:r.left-s.left, y:r.top-s.top, w:r.width, h:r.height};}
 
 /* --------------------- CSV --------------------- */
 function sniffDelim(sample){const h=sample.split(/\r?\n/).slice(0,5).join('\n');const c={',':(h.match(/,/g)||[]).length,';':(h.match(/;/g)||[]).length,'\t':(h.match(/\t/g)||[]).length,'|':(h.match(/\|/g)||[]).length};return Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0]||',';}
@@ -256,13 +257,12 @@ function parseCSV(text){
     cell+=ch;
   } pc(); if(row.length) pr();
   const header=rows.shift().map(s=>s.trim());
-  const out=rows.filter(r=>r.some(v=>String(v).trim()!=='')).map(r=>{const o={}; header.forEach((h,i)=>o[h]=r[i]??''); return o;});
-  setDiag(`CSV parsed (delim “${d}”): ${out.length} rows.`); return out;
+  return rows.filter(r=>r.some(v=>String(v).trim()!=='')).map(r=>{const o={}; header.forEach((h,i)=>o[h]=r[i]??''); return o;});
 }
 function pickFuzzy(r,ns){for(const n of ns){if(r[n]!=null&&String(r[n]).trim()!=='')return r[n];}for(const k in r){for(const n of ns){if(normalize(k).includes(normalize(n))&&String(r[k]).trim()!=='')return r[k];}}return '';}
 function deckPos(){q('#deckPos').textContent=`${state.csvRows.length?state.rowIndex+1:0} / ${state.csvRows.length}`;}
 q('#btn-load-csv').addEventListener('click',()=>q('#csvFile').click());
-q('#csvFile').addEventListener('change',ev=>{const f=ev.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{state.csvRows=parseCSV(fr.result);state.rowIndex=0;applyRow();deckPos();};fr.readAsText(f,'utf-8');});
+q('#csvFile').addEventListener('change',ev=>{const f=ev.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{state.csvRows=parseCSV(fr.result);state.rowIndex=0;applyRow();deckPos();setDiag(`CSV parsed: ${state.csvRows.length} rows`);};fr.readAsText(f,'utf-8');});
 
 /* --------------------- Images & frame --------------------- */
 q('#btn-load-imgs').addEventListener('click',()=>q('#imgFiles').click());
@@ -271,7 +271,7 @@ q('#imgFiles').addEventListener('change',ev=>{
   for(const f of files){const base=f.name.replace(/\.[^.]+$/,''); const url=URL.createObjectURL(f);
     state.images.set(base.toLowerCase(),url); state.images.set(normalize(base),url); state.urlToFile.set(url,f); added++;
   }
-  setDiag(`Imported ${added} images. Matching by Art or Name.`);
+  setDiag(`Imported ${added} images.`);
   applyRow();
 });
 q('#frameFile').addEventListener('change',ev=>{
@@ -317,7 +317,6 @@ artX.addEventListener('input',e=>{state.art.x=+e.target.value;applyArt();});
 artY.addEventListener('input',e=>{state.art.y=+e.target.value;applyArt();});
 artScale.addEventListener('input',e=>{state.art.scale=(+e.target.value)/100;applyArt();});
 artPad.addEventListener('input',e=>{state.art.pad=+e.target.value;applyArt();});
-q('#fitArt').addEventListener('click',fitArtBox);
 /* drag */
 let dragging=false,sx=0,sy=0,ax=0,ay=0;
 q('#artHandle').addEventListener('mousedown',e=>{dragging=true;sx=e.clientX;sy=e.clientY;ax=state.art.x;ay=state.art.y;e.preventDefault();});
@@ -327,7 +326,6 @@ window.addEventListener('mouseup',()=>dragging=false);
 /* --------------------- Inspector --------------------- */
 const elements={name:q('#name'),type:q('#type'),rules:q('#rules'),flavor:q('#flavor'),bMOV,bATK,bHP,bCOST};
 const selElement=q('#selElement'), posX=q('#posX'),posY=q('#posY'),posW=q('#posW'),posH=q('#posH');
-function boundsInStage(el){const r=el.getBoundingClientRect(), s=stage.getBoundingClientRect(); return {x:r.left-s.left,y:r.top-s.top,w:r.width,h:r.height};}
 function syncInspector(){const el=elements[selElement.value]; const b=boundsInStage(el); posX.value=Math.round(b.x);posY.value=Math.round(b.y);posW.value=Math.round(b.w);posH.value=Math.round(b.h);
   selEdit.style.display='block'; selEdit.style.left=(b.x-2)+'px'; selEdit.style.top=(b.y-2)+'px'; selEdit.style.width=(b.w+4)+'px'; selEdit.style.height=(b.h+4)+'px';}
 selElement.addEventListener('change',syncInspector);
@@ -344,149 +342,242 @@ function captureLayout(){const pick=el=>({left:el.style.left||el.offsetLeft+'px'
   return {name:pick(elements.name),type:pick(elements.type),rules:pick(elements.rules),flavor:pick(elements.flavor),bMOV:pick(elements.bMOV),bATK:pick(elements.bATK),bHP:pick(elements.bHP),bCOST:pick(elements.bCOST),
           art:{...state.art},frame:{opacity:frameTpl.style.opacity||0.95,z:frameTpl.style.zIndex||6}};}
 function applyLayout(L){if(!L)return;['name','type','rules','flavor','bMOV','bATK','bHP','bCOST'].forEach(k=>{const l=L[k],el=elements[k]; if(l&&el){el.style.left=l.left;el.style.top=l.top;el.style.width=l.width;el.style.height=l.height;}}); if(L.art){state.art=L.art;artX.value=state.art.x;artY.value=state.art.y;artScale.value=state.art.scale*100;artPad.value=state.art.pad;applyArt();} if(L.frame){frameTpl.style.opacity=L.frame.opacity;frameTpl.style.zIndex=L.frame.z;} syncInspector();}
-q('#btn-save-layout').addEventListener('click',()=>{localStorage.setItem('soa_layout_v633',JSON.stringify(captureLayout()));setDiag('Layout saved.');});
-q('#btn-load-layout').addEventListener('click',()=>{const raw=localStorage.getItem('soa_layout_v633'); if(!raw)return setDiag('No saved layout.'); applyLayout(JSON.parse(raw)); setDiag('Layout loaded.');});
-q('#btn-reset').addEventListener('click',()=>{localStorage.removeItem('soa_layout_v633'); location.reload();});
-q('#btn-export-json').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v633.json'; a.click();});
+q('#btn-save-layout').addEventListener('click',()=>{localStorage.setItem('soa_layout_v634',JSON.stringify(captureLayout()));setDiag('Layout saved.');});
+q('#btn-load-layout').addEventListener('click',()=>{const raw=localStorage.getItem('soa_layout_v634'); if(!raw)return setDiag('No saved layout.'); applyLayout(JSON.parse(raw)); setDiag('Layout loaded.');});
+q('#btn-reset').addEventListener('click',()=>{localStorage.removeItem('soa_layout_v634'); location.reload();});
+q('#btn-export-json').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v634.json'; a.click();});
 q('#importJson').addEventListener('change',ev=>{const f=ev.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{try{applyLayout(JSON.parse(fr.result));setDiag('Imported layout JSON.');}catch{setDiag('Invalid JSON.');}};fr.readAsText(f);});
 
-/* --------------------- Hardened renderer --------------------- */
-const raf=()=>new Promise(r=>requestAnimationFrame(r)), pause=(ms=0)=>new Promise(r=>setTimeout(r,ms));
-const fileToDataURL=f=>new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(f);});
-
-async function inlineImg(img){
-  const src=img.getAttribute('src')||''; if(!src||src.startsWith('data:')) return false;
-  const f=state.urlToFile.get(src);
-  if(f){ img.src=await fileToDataURL(f); return true; }
-  try{ const blob=await fetch(src,{mode:'cors'}).then(r=>r.blob()); const fr=new FileReader(); const data=await new Promise(r=>{fr.onload=()=>r(fr.result); fr.readAsDataURL(blob);}); img.src=data; return true; }
-  catch{ return false; }
-}
-async function inlineStageImages(){ const imgs=[...stage.querySelectorAll('img')]; for(const im of imgs){ await inlineImg(im); } }
-async function waitForImagesLoaded(root){ const imgs=[...root.querySelectorAll('img')]; await Promise.all(imgs.map(im=>new Promise(res=>{ if(im.complete) return res(); im.onload=()=>res(); im.onerror=()=>res(); }))); }
-
-/* NEW: inline computed styles on the clone so Firefox doesn't drop them inside FO */
-function inlineComputedStyles(src, clone){
-  const tree = (a,b)=>{
-    const ac=[...a.children], bc=[...b.children];
-    for(let i=0;i<ac.length;i++){ const ae=ac[i], be=bc[i]; if(!ae||!be) continue;
-      // copy computed styles
-      const cs=getComputedStyle(ae), style=be.style;
-      for(let j=0;j<cs.length;j++){ const prop=cs[j]; style.setProperty(prop, cs.getPropertyValue(prop)); }
-      // crucial sizing to avoid FO min-content sizing quirks
-      style.setProperty('box-sizing','border-box');
-      if(!be.style.width)  be.style.width  = ae.getBoundingClientRect().width +'px';
-      if(!be.style.height) be.style.height = ae.getBoundingClientRect().height+'px';
-      tree(ae,be);
-    }
-  };
-  // root
-  const cs=getComputedStyle(src), s=clone.style;
-  for(let i=0;i<cs.length;i++){ const prop=cs[i]; s.setProperty(prop, cs.getPropertyValue(prop)); }
-  s.setProperty('box-sizing','border-box');
-  s.width  = src.getBoundingClientRect().width +'px';
-  s.height = src.getBoundingClientRect().height+'px';
-  tree(src,clone);
-}
-
-const collectInlineCSS = () => [...document.querySelectorAll('style')].map(s=>s.textContent||'').join('\n');
-
-async function domToPng(node,{attempts=4}={}){
-  const w=node.offsetWidth, h=node.offsetHeight;
-
-  await inlineStageImages();
-  await waitForImagesLoaded(node);
-
-  for(let n=1;n<=attempts;n++){
-    const clone=node.cloneNode(true);
-    clone.querySelector('#selEdit')?.remove();
-
-    // make sure images in clone are data URLs and sized
-    for(const im of clone.querySelectorAll('img')){
-      if(im.src && !im.src.startsWith('data:')){
-        try{ const resp=await fetch(im.src,{mode:'cors'}); const blob=await resp.blob(); const fr=new FileReader();
-             const data=await new Promise(r=>{fr.onload=()=>r(fr.result); fr.readAsDataURL(blob);}); im.src=data; }catch{}
-      }
-      im.setAttribute('decoding','sync'); im.setAttribute('loading','eager');
-      if(!im.width)  im.width  = im.naturalWidth  || w;
-      if(!im.height) im.height = im.naturalHeight || h;
-      im.style.width = (im.width||w)+'px';
-      im.style.height= (im.height||h)+'px';
-    }
-
-    // **critical**: inline computed styles to the clone
-    inlineComputedStyles(node, clone);
-
-    const css=collectInlineCSS();
-    const xhtml=`<div xmlns="http://www.w3.org/1999/xhtml"><style>${css}</style>${clone.outerHTML}</div>`;
-    const svg=`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xhtml="http://www.w3.org/1999/xhtml" width="${w}" height="${h}">
-                 <foreignObject width="100%" height="100%">${xhtml}</foreignObject>
-               </svg>`;
-    const svgBlob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'});
-    const svgUrl=URL.createObjectURL(svgBlob);
-
+/* --------------------- Manual Canvas Renderer --------------------- */
+/* Create an Image from a src, trying to convert local objectURL to data: to avoid taint */
+function imageFromSrc(src){
+  return new Promise(async (resolve,reject)=>{
     try{
-      await raf(); await pause(0);
-      const image=await new Promise((res,rej)=>{const i=new Image(); i.onload=()=>res(i); i.onerror=()=>rej(new Error('SVG rasterize error')); i.src=svgUrl;});
-      const c=document.createElement('canvas'); c.width=w; c.height=h;
-      const ctx=c.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
-      ctx.drawImage(image,0,0,w,h);
-      URL.revokeObjectURL(svgUrl);
-      return c.toDataURL('image/png');
-    }catch(e){
-      URL.revokeObjectURL(svgUrl);
-      if(n===attempts) throw e;
-      await pause(120); // slightly longer backoff
+      if(!src){ resolve(null); return; }
+      let finalSrc = src;
+      const file = state.urlToFile.get(src);
+      if(file){
+        const fr=new FileReader();
+        fr.onload=()=>{ const im=new Image(); im.onload=()=>resolve(im); im.onerror=reject; im.src=fr.result; };
+        fr.readAsDataURL(file);
+        return;
+      }
+      // fall back to normal
+      const im=new Image();
+      im.crossOrigin='anonymous';
+      im.onload=()=>resolve(im);
+      im.onerror=()=>reject(new Error('image load failed'));
+      im.src=finalSrc;
+    }catch(e){ reject(e); }
+  });
+}
+function drawWrappedText(ctx, text, x, y, maxW, lineH){
+  const lines = String(text||'').split(/\r?\n/);
+  for(const base of lines){
+    const words=base.split(/\s+/); let line='';
+    for(const w of words){
+      const test=line? (line+' '+w) : w;
+      const m=ctx.measureText(test);
+      if(m.width>maxW && line){ ctx.fillText(line, x, y); y+=lineH; line=w; }
+      else line=test;
     }
+    ctx.fillText(line, x, y); y+=lineH;
   }
-  throw new Error('SVG rasterize error');
+}
+async function renderCardCanvas(){
+  const w=stage.offsetWidth, h=stage.offsetHeight;
+  const c=document.createElement('canvas'); c.width=w; c.height=h; const ctx=c.getContext('2d');
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+
+  // Background
+  ctx.fillStyle='#111'; ctx.fillRect(0,0,w,h);
+
+  // Optional frame below art?
+  const frameBelow = (q('#frameZ').value === 'below');
+
+  // Images
+  const artImg = await imageFromSrc(art.getAttribute('src')||'');
+  const frameImg = await imageFromSrc(frameTpl.getAttribute('src')||'');
+
+  // Calculate artBox clip from pad
+  const pad=state.art.pad||0;
+  const clip = { x:50+pad, y:80+pad, w: w - (50+pad) - (50+pad), h: h - (80+pad) - (210+pad) };
+
+  // Draw functions
+  const drawFrame = ()=>{
+    if(!frameImg) return;
+    const op = parseFloat(frameTpl.style.opacity||'0.95');
+    ctx.save(); ctx.globalAlpha = isNaN(op)?0.95:op;
+    ctx.drawImage(frameImg, 0, 0, w, h);
+    ctx.restore();
+  };
+  const drawArt = ()=>{
+    if(!artImg) return;
+    const scale=state.art.scale||1;
+    const imgW=artImg.naturalWidth||artImg.width||w;
+    const imgH=artImg.naturalHeight||artImg.height||h;
+    const drawW=imgW*scale, drawH=imgH*scale;
+    const cx=w/2 + (state.art.x||0), cy=h/2 + (state.art.y||0);
+    const dx = Math.round(cx - drawW/2);
+    const dy = Math.round(cy - drawH/2);
+    // clip to artBox
+    ctx.save();
+    ctx.beginPath(); ctx.rect(clip.x, clip.y, clip.w, clip.h); ctx.clip();
+    ctx.drawImage(artImg, dx, dy, drawW, drawH);
+    ctx.restore();
+  };
+
+  if(frameBelow) drawFrame();
+  drawArt();
+  if(!frameBelow) drawFrame();
+
+  // Text styles
+  function textStyleFrom(el, extra={}) {
+    const cs=getComputedStyle(el);
+    const size=parseFloat(cs.fontSize)||16;
+    const lineH=(parseFloat(cs.lineHeight)|| (size*1.35));
+    const weight=cs.fontWeight||'400';
+    const family=cs.fontFamily||'system-ui';
+    const style=cs.fontStyle||'normal';
+    const color=cs.color||'#fff';
+    const font=`${style} ${weight} ${size}px ${family}`;
+    const b=boundsInStage(el);
+    return {font, color, lineH, box:b, ...extra};
+  }
+
+  // Name
+  {
+    const el=q('#name'), {font,color,lineH,box}=textStyleFrom(el);
+    ctx.save(); ctx.font=font; ctx.fillStyle=color; ctx.textBaseline='top';
+    const pad=2;
+    drawWrappedText(ctx, fldName.value||'Name', box.x+pad, box.y+pad, box.w-2*pad, lineH);
+    ctx.restore();
+  }
+
+  // Type (white, a bit smaller than name)
+  {
+    const el=q('#type'), {font,color,lineH,box}=textStyleFrom(el);
+    ctx.save(); ctx.font=font; ctx.fillStyle=color; ctx.textBaseline='top';
+    drawWrappedText(ctx, fldType.value||'Type — Subtype', box.x, box.y, box.w, lineH);
+    ctx.restore();
+  }
+
+  // Rules (wrap + newlines)
+  {
+    const el=q('#rules'), {font,color,lineH,box}=textStyleFrom(el);
+    ctx.save(); ctx.font=font; ctx.fillStyle=color; ctx.textBaseline='top';
+    drawWrappedText(ctx, fldRules.value||'Rules text...', box.x+8, box.y+8, box.w-16, lineH);
+    ctx.restore();
+  }
+
+  // Flavor (italic smaller)
+  {
+    const el=q('#flavor'), {font,color,lineH,box}=textStyleFrom(el);
+    ctx.save(); ctx.font=font; ctx.fillStyle=color; ctx.textBaseline='alphabetic';
+    drawWrappedText(ctx, fldFlavor.value||'“Flavor text...”', box.x, box.y+box.h- lineH, box.w, lineH);
+    ctx.restore();
+  }
+
+  // Badges (circles with value)
+  function drawBadge(el, value){
+    const b=boundsInStage(el);
+    const r=Math.min(b.w,b.h)/2;
+    const cx=b.x+b.w/2, cy=b.y+b.h/2;
+    ctx.save();
+    ctx.fillStyle='rgba(0,0,0,.35)';
+    ctx.strokeStyle='rgba(255,255,255,.15)';
+    ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#fff';
+    ctx.font='800 22px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(String(value??''), cx, cy+1);
+    ctx.restore();
+  }
+  drawBadge(bATK, fldATK.value||'1');
+  drawBadge(bHP,  fldHP.value ||'1');
+  drawBadge(bMOV, fldMOV.value||'1');
+  drawBadge(bCOST,fldCOST.value||'1');
+
+  return c;
 }
 
-/* --------------------- Export & Queue --------------------- */
-q('#btn-export-png').addEventListener('click',async ()=>{
-  setDiag('Rendering PNG…');
-  try{const data=await domToPng(stage,{attempts:4}); const a=document.createElement('a'); a.href=data; a.download=(fldName.value||'card')+'.png'; a.click(); setDiag('Exported PNG.');}
-  catch(e){setDiag('Render failed: '+(e.message||e));}
+/* --------------------- Export & Queue (use manual renderer) --------------------- */
+q('#btn-export-png').addEventListener('click', async ()=>{
+  try{
+    setDiag('Rendering PNG…');
+    const canvas = await renderCardCanvas();
+    const a=document.createElement('a'); a.href=canvas.toDataURL('image/png'); a.download=(fldName.value||'card')+'.png'; a.click();
+    setDiag('Exported PNG (manual renderer).');
+  }catch(e){ setDiag('Render failed: '+(e.message||e)); }
 });
-q('#btn-add-queue').addEventListener('click',async ()=>{
-  try{ setDiag('Rendering for queue…'); const data=await domToPng(stage,{attempts:4}); state.queue.push(data); const im=document.createElement('img'); im.src=data; q('#queueThumbs').appendChild(im); setDiag(`Queued (${state.queue.length}).`); }
-  catch(e){ setDiag('Queue render failed: '+(e.message||e)); }
-});
-q('#btn-clear-queue').addEventListener('click',()=>{state.queue=[]; q('#queueThumbs').innerHTML=''; setDiag('Queue cleared.');});
-q('#btn-export-queue').addEventListener('click',()=>{ if(!state.queue.length) return setDiag('Queue empty.');
-  let i=1; for(const p of state.queue){ const a=document.createElement('a'); a.href=p; a.download=`card_${i++}.png`; a.click(); }});
 
-/* --------------------- TTS Sheet --------------------- */
+q('#btn-add-queue').addEventListener('click', async ()=>{
+  try{
+    setDiag('Rendering for queue…');
+    const canvas = await renderCardCanvas();
+    const data = canvas.toDataURL('image/png');
+    state.queue.push(data);
+    const im=document.createElement('img'); im.src=data; q('#queueThumbs').appendChild(im);
+    setDiag(`Queued (${state.queue.length}). Render success: all layers inlined to data URIs`);
+  }catch(e){ setDiag('Queue render failed: '+(e.message||e)); }
+});
+q('#btn-clear-queue').addEventListener('click', ()=>{ state.queue=[]; q('#queueThumbs').innerHTML=''; setDiag('Queue cleared.'); });
+q('#btn-export-queue').addEventListener('click', ()=>{
+  if(!state.queue.length){ setDiag('Queue empty.'); return; }
+  let i=1; for(const p of state.queue){ const a=document.createElement('a'); a.href=p; a.download=`card_${i++}.png`; a.click(); }
+});
+
+/* --------------------- TTS Sheet (manual renderer) --------------------- */
 function applyPreset(val){const cols=q('#sheetCols'),rows=q('#sheetRows'),w=q('#sheetW'),h=q('#sheetH'),name=q('#sheetName');
   if(val==='tts10x7'){cols.value=10;rows.value=7;w.value=4096;h.value=4096;name.value='SoA_TTS_10x7';}
   else if(val==='tts7x10'){cols.value=7;rows.value=10;w.value=4096;h.value=4096;name.value='SoA_TTS_7x10';}
   else if(val==='a2_7x5'){cols.value=7;rows.value=5;w.value=5600;h.value=4000;name.value='SoA_7x5_5600x4000';} }
 q('#sheetPreset').addEventListener('change',e=>applyPreset(e.target.value));
-async function renderCardToImage(){ return await domToPng(stage,{attempts:4}); }
-q('#buildSheet').addEventListener('click',async ()=>{
-  const cols=+q('#sheetCols').value, rows=+q('#sheetRows').value, W=+q('#sheetW').value, H=+q('#sheetH').value, pad=+q('#sheetPad').value;
-  const start=+q('#sheetStart').value, count=+q('#sheetCount').value; const bg=q('#sheetBG').value; const fname=q('#sheetName').value||'SoA_TTS_Sheet';
-  const cellW=Math.floor((W-(cols+1)*pad)/cols), cellH=Math.floor((H-(rows+1)*pad)/rows);
-  const sheet=document.createElement('canvas'); sheet.width=W; sheet.height=H; const ctx=sheet.getContext('2d'); if(bg==='transparent')ctx.clearRect(0,0,W,H); else {ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);}
-  const saved={rowIndex:state.rowIndex, art:{...state.art}};
-  let idx=start, placed=0;
-  for(let r=0;r<rows;r++){ for(let c=0;c<cols;c++){ if(placed>=count||idx>=state.csvRows.length) break;
-      state.rowIndex=idx; applyRow();
-      const data=await renderCardToImage(); const img=await new Promise(res=>{const i=new Image(); i.onload=()=>res(i); i.src=data;});
-      const x=pad+c*(cellW+pad), y=pad+r*(cellH+pad);
-      const s=Math.max(cellW/img.width, cellH/img.height);
-      const dw=Math.round(img.width*s), dh=Math.round(img.height*s);
-      const ox=x+Math.floor((cellW-dw)/2), oy=y+Math.floor((cellH-dh)/2);
-      ctx.drawImage(img,ox,oy,dw,dh); idx++; placed++; } }
-  state.rowIndex=saved.rowIndex; state.art=saved.art; applyArt();
-  const out=sheet.toDataURL('image/png'); const a=document.createElement('a'); a.href=out; a.download=fname+'.png'; a.click();
-  q('#sheetPreview').textContent=`Built ${placed} cards → ${fname}.png (${W}×${H})`;
-  setDiag(`Sheet built: ${placed} cards.`);
+
+q('#buildSheet').addEventListener('click', async ()=>{
+  try{
+    setDiag('Building sheet…');
+    const cols=+q('#sheetCols').value, rows=+q('#sheetRows').value, W=+q('#sheetW').value, H=+q('#sheetH').value, pad=+q('#sheetPad').value;
+    const start=+q('#sheetStart').value, count=+q('#sheetCount').value; const bg=q('#sheetBG').value; const fname=q('#sheetName').value||'SoA_TTS_Sheet';
+    const cellW = Math.floor((W - (cols+1)*pad)/cols), cellH = Math.floor((H - (rows+1)*pad)/rows);
+
+    const sheet=document.createElement('canvas'); sheet.width=W; sheet.height=H; const ctx=sheet.getContext('2d');
+    if(bg==='transparent'){ ctx.clearRect(0,0,W,H);} else { ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);}    
+
+    const saved={rowIndex:state.rowIndex, art:{...state.art}};
+    let idx=start, placed=0;
+
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        if(placed>=count || idx>=state.csvRows.length) break;
+        state.rowIndex = idx; applyRow();
+        const canvas = await renderCardCanvas();
+        const img = await new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.src=canvas.toDataURL('image/png'); });
+        const x = pad + c*(cellW+pad), y = pad + r*(cellH+pad);
+        // fill cell (cover)
+        const s = Math.max(cellW/img.width, cellH/img.height);
+        const dw = Math.round(img.width*s), dh = Math.round(img.height*s);
+        const ox = x + Math.floor((cellW-dw)/2), oy = y + Math.floor((cellH-dh)/2);
+        ctx.drawImage(img, ox, oy, dw, dh);
+        idx++; placed++;
+      }
+    }
+
+    state.rowIndex = saved.rowIndex; state.art = saved.art; applyArt();
+    const out = sheet.toDataURL('image/png');
+    const a=document.createElement('a'); a.href=out; a.download=fname+'.png'; a.click();
+    q('#sheetPreview').textContent = `Built ${placed} cards → ${fname}.png (${W}×${H})`;
+    setDiag(`Sheet built: ${placed} cards (manual renderer).`);
+  }catch(e){ setDiag('Sheet build failed: '+(e.message||e)); }
 });
 
 /* --------------------- Init --------------------- */
-function deckPos(){q('#deckPos').textContent=`${state.csvRows.length?state.rowIndex+1:0} / ${state.csvRows.length}`;}
-renderFields(); fitArtBox(); (q('#selElement').value='name'); (function(){const el=elements.name; const r=el.getBoundingClientRect(), s=stage.getBoundingClientRect(); selEdit.style.left=(r.left-s.left-2)+'px'; selEdit.style.top=(r.top-s.top-2)+'px'; selEdit.style.width=(r.width+4)+'px'; selEdit.style.height=(r.height+4)+'px'; selEdit.style.display='block';})();
-setDiag('Classic layout v6.33 loaded (computed-style inline render).');
+(function init(){
+  renderFields(); fitArtBox();
+  (q('#selElement').value='name'); syncInspector();
+  setDiag('Classic layout v6.34 loaded (manual canvas renderer).');
+})();
 </script>
 </body>
 </html>
