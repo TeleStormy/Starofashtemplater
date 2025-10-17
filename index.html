@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star of Ash — Card Templater (Classic Layout v6.35)</title>
+<title>Star of Ash — Card Templater (Classic Layout v6.36)</title>
 <style>
   :root{
     --bg:#0b0b0c; --panel:#151517; --panel-2:#1b1b1f; --text:#eae7e4; --muted:#aaa6a2;
@@ -35,7 +35,7 @@
   .pill{border:1px solid var(--border); padding:2px 8px; border-radius:999px; font-size:11px; color:var(--muted)}
   .small{font-size:12px; color:var(--muted)}
 
-  /* Center canvas (unchanged layout) */
+  /* Center canvas (layout preserved) */
   .center{position:relative}
   .stage{position:relative; margin:20px auto; width:744px; height:1039px; background:#111; border:1px solid var(--border); border-radius:16px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,.5)}
   .card-bg{position:absolute; inset:0; background:linear-gradient(180deg,#201f22,#141316)}
@@ -50,12 +50,13 @@
               font-size:12px; letter-spacing:.3px; cursor:grab; z-index:6}
   .art-handle:active{cursor:grabbing}
 
-  /* Text / badges — remain above frame */
+  /* Text / badges — top-most */
   .name{position:absolute; left:89px; top:204px; right:24px; font-weight:800; font-size:34px; z-index:1200}
   .type-line{position:absolute; left:90px; top:239px; right:24px; color:#fff; font-size:20px; z-index:1200}
   .rules{position:absolute; left:238px; top:703px; right:24px; min-height:150px; font-size:16px; line-height:1.45; background:rgba(255,255,255,.03); padding:12px 14px; border-radius:10px; border:1px solid var(--border);
          white-space:pre-wrap; overflow-wrap:anywhere; word-wrap:break-word; z-index:1200}
   .flavor{position:absolute; left:24px; right:24px; bottom:24px; font-size:12px; color:#c8c3bd; font-style:italic; z-index:1200}
+
   .badge{position:absolute; z-index:1300; min-width:52px; height:52px; border-radius:999px; background:rgba(0,0,0,.35); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:20px; padding:0 10px}
   #bMOV{left:164px; top:881px}
   #bATK{left:143px; top:707px}
@@ -75,7 +76,7 @@
 <body>
 <div class="app">
   <header>
-    <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.35</span></h1>
+    <h1>Star of Ash — Card Templater <span class="tag">Classic Layout v6.36</span></h1>
     <div class="row">
       <button id="btn-export-png" class="primary">Export PNG</button>
       <button id="btn-save-layout">Save Layout</button>
@@ -123,6 +124,37 @@
         <label>MOV</label><input id="fldMOV" type="number" value="1" style="width:70px">
         <label>Cost</label><input id="fldCOST" type="number" value="1" style="width:70px">
       </div>
+    </div>
+
+    <!-- Text size controls -->
+    <div class="section">
+      <h3>Text Sizes</h3>
+      <div class="row">
+        <label>Name</label>
+        <input id="szName" type="range" min="10" max="72" value="34" style="flex:1">
+        <input id="szNameNum" type="number" min="10" max="72" value="34" style="width:70px">
+      </div>
+      <div class="row">
+        <label>Type</label>
+        <input id="szType" type="range" min="10" max="48" value="20" style="flex:1">
+        <input id="szTypeNum" type="number" min="10" max="48" value="20" style="width:70px">
+      </div>
+      <div class="row">
+        <label>Rules</label>
+        <input id="szRules" type="range" min="10" max="36" value="16" style="flex:1">
+        <input id="szRulesNum" type="number" min="10" max="36" value="16" style="width:70px">
+      </div>
+      <div class="row">
+        <label>Flavor</label>
+        <input id="szFlavor" type="range" min="8" max="28" value="12" style="flex:1">
+        <input id="szFlavorNum" type="number" min="8" max="28" value="12" style="width:70px">
+      </div>
+      <div class="row">
+        <label>Stats (badge)</label>
+        <input id="szBadge" type="range" min="12" max="48" value="22" style="flex:1">
+        <input id="szBadgeNum" type="number" min="12" max="48" value="22" style="width:70px">
+      </div>
+      <div class="small">Sizes are in pixels and saved with your layout.</div>
     </div>
 
     <div class="section">
@@ -237,7 +269,8 @@ const state = {
   images: new Map(),        // normalized -> objectURL
   urlToFile: new Map(),     // objectURL -> File (for data URL)
   art: { x:0, y:0, scale:1, pad:0 },
-  queue: [], guides:false
+  queue: [], guides:false,
+  textSizes: { name:34, type:20, rules:16, flavor:12, badge:22 }  // defaults
 };
 const q = s => document.querySelector(s);
 const stage=q('#stage'), art=q('#art'), artBox=q('#artBox'), frameTpl=q('#frameTpl'), selEdit=q('#selEdit');
@@ -246,6 +279,36 @@ const bATK=q('#bATK'), bHP=q('#bHP'), bMOV=q('#bMOV'), bCOST=q('#bCOST');
 const artX=q('#artX'), artY=q('#artY'), artScale=q('#artScale'), artPad=q('#artPad');
 const setDiag = m => q('#diag').textContent = m;
 const normalize=s=>String(s||'').toLowerCase().replace(/\.[^.]+$/,'').replace(/[^a-z0-9]/g,'');
+
+/* ---- Text-size controls refs ---- */
+const sz = {
+  name:    {range: q('#szName'),   num: q('#szNameNum')},
+  type:    {range: q('#szType'),   num: q('#szTypeNum')},
+  rules:   {range: q('#szRules'),  num: q('#szRulesNum')},
+  flavor:  {range: q('#szFlavor'), num: q('#szFlavorNum')},
+  badge:   {range: q('#szBadge'),  num: q('#szBadgeNum')}
+};
+function applyTextSizesToDOM(){
+  q('#name').style.fontSize  = state.textSizes.name  + 'px';
+  q('#type').style.fontSize  = state.textSizes.type  + 'px';
+  q('#rules').style.fontSize = state.textSizes.rules + 'px';
+  q('#flavor').style.fontSize= state.textSizes.flavor+ 'px';
+}
+function linkSizeControl(key){
+  const r = sz[key].range, n = sz[key].num;
+  const push = (val)=>{ val = Math.max(+r.min, Math.min(+r.max, +val||0)); r.value = n.value = val; state.textSizes[key] = val; applyTextSizesToDOM(); };
+  r.addEventListener('input', ()=> push(r.value));
+  n.addEventListener('input', ()=> push(n.value));
+}
+function initTextSizeControls(){
+  sz.name.range.value   = sz.name.num.value   = state.textSizes.name;
+  sz.type.range.value   = sz.type.num.value   = state.textSizes.type;
+  sz.rules.range.value  = sz.rules.num.value  = state.textSizes.rules;
+  sz.flavor.range.value = sz.flavor.num.value = state.textSizes.flavor;
+  sz.badge.range.value  = sz.badge.num.value  = state.textSizes.badge;
+  ['name','type','rules','flavor','badge'].forEach(linkSizeControl);
+  applyTextSizesToDOM();
+}
 
 function boundsInStage(el){const r=el.getBoundingClientRect(), s=stage.getBoundingClientRect(); return {x:r.left-s.left, y:r.top-s.top, w:r.width, h:r.height};}
 function deckPos(){q('#deckPos').textContent=`${state.csvRows.length?state.rowIndex+1:0} / ${state.csvRows.length}`;}
@@ -262,7 +325,7 @@ function parseCSV(text){
     cell+=ch;
   } pc(); if(row.length) pr();
   const header=rows.shift().map(s=>s.trim());
-  return rows.filter(r=>r.some(v=>String(v).trim()!=='')).map(r=>{const o={}; header.forEach((h,i)=>o[h]=r[i]??''); return o;});
+  return rows.filter(r=>r.some(v=>String(v).trim()!=='')).map(r=>{const o={}; header.forEach((h,i)=>o[h]=r[i]??'' ); return o;});
 }
 function pickFuzzy(r,ns){for(const n of ns){if(r[n]!=null&&String(r[n]).trim()!=='')return r[n];}for(const k in r){for(const n of ns){if(normalize(k).includes(normalize(n))&&String(r[k]).trim()!=='')return r[k];}}return '';}
 q('#btn-load-csv').addEventListener('click',()=>q('#csvFile').click());
@@ -341,15 +404,28 @@ window.addEventListener('mousemove',e=>{if(!draggingSel)return;const dx=e.client
 window.addEventListener('mouseup',()=>draggingSel=false);
 q('#toggleGuides').addEventListener('click',()=>{state.guides=!state.guides;stage.style.outline=state.guides?'1px dashed #333':'none';});
 
-/* --------------------- Save/Load layout --------------------- */
-function captureLayout(){const pick=el=>({left:el.style.left||el.offsetLeft+'px',top:el.style.top||el.offsetTop+'px',width:el.style.width||el.offsetWidth+'px',height:el.style.height||el.offsetHeight+'px'});
-  return {name:pick(elements.name),type:pick(elements.type),rules:pick(elements.rules),flavor:pick(elements.flavor),bMOV:pick(elements.bMOV),bATK:pick(elements.bATK),bHP:pick(elements.bHP),bCOST:pick(elements.bCOST),
-          art:{...state.art},frame:{opacity:frameTpl.style.opacity||0.95,z:frameTpl.style.zIndex||6}};}
-function applyLayout(L){if(!L)return;['name','type','rules','flavor','bMOV','bATK','bHP','bCOST'].forEach(k=>{const l=L[k],el=elements[k]; if(l&&el){el.style.left=l.left;el.style.top=l.top;el.style.width=l.width;el.style.height=l.height;}}); if(L.art){state.art=L.art;artX.value=state.art.x;artY.value=state.art.y;artScale.value=state.art.scale*100;artPad.value=state.art.pad;applyArt();} if(L.frame){frameTpl.style.opacity=L.frame.opacity;frameTpl.style.zIndex=L.frame.z;} boundsForInspector();}
-q('#btn-save-layout').addEventListener('click',()=>{localStorage.setItem('soa_layout_v635',JSON.stringify(captureLayout()));setDiag('Layout saved.');});
-q('#btn-load-layout').addEventListener('click',()=>{const raw=localStorage.getItem('soa_layout_v635'); if(!raw)return setDiag('No saved layout.'); applyLayout(JSON.parse(raw)); setDiag('Layout loaded.');});
-q('#btn-reset').addEventListener('click',()=>{localStorage.removeItem('soa_layout_v635'); location.reload();});
-q('#btn-export-json').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v635.json'; a.click();});
+/* --------------------- Save/Load layout (with textSizes) --------------------- */
+function captureLayout(){
+  const pick=el=>({left:el.style.left||el.offsetLeft+'px',top:el.style.top||el.offsetTop+'px',width:el.style.width||el.offsetWidth+'px',height:el.style.height||el.offsetHeight+'px'});
+  return {
+    name:pick(elements.name), type:pick(elements.type), rules:pick(elements.rules), flavor:pick(elements.flavor),
+    bMOV:pick(elements.bMOV), bATK:pick(elements.bATK), bHP:pick(elements.bHP), bCOST:pick(elements.bCOST),
+    art:{...state.art}, frame:{opacity:frameTpl.style.opacity||0.95,z:frameTpl.style.zIndex||6},
+    textSizes:{...state.textSizes}
+  };
+}
+function applyLayout(L){
+  if(!L)return;
+  ['name','type','rules','flavor','bMOV','bATK','bHP','bCOST'].forEach(k=>{const l=L[k],el=elements[k]; if(l&&el){el.style.left=l.left;el.style.top=l.top;el.style.width=l.width;el.style.height=l.height;}});
+  if(L.art){ state.art=L.art; artX.value=state.art.x; artY.value=state.art.y; artScale.value=state.art.scale*100; artPad.value=state.art.pad; applyArt(); }
+  if(L.frame){ frameTpl.style.opacity=L.frame.opacity; frameTpl.style.zIndex=L.frame.z; }
+  if(L.textSizes){ state.textSizes={...state.textSizes, ...L.textSizes}; initTextSizeControls(); }
+  boundsForInspector();
+}
+q('#btn-save-layout').addEventListener('click',()=>{localStorage.setItem('soa_layout_v636',JSON.stringify(captureLayout()));setDiag('Layout saved.');});
+q('#btn-load-layout').addEventListener('click',()=>{const raw=localStorage.getItem('soa_layout_v636'); if(!raw)return setDiag('No saved layout.'); applyLayout(JSON.parse(raw)); setDiag('Layout loaded.');});
+q('#btn-reset').addEventListener('click',()=>{localStorage.removeItem('soa_layout_v636'); location.reload();});
+q('#btn-export-json').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(captureLayout(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soa_layout_v636.json'; a.click();});
 q('#importJson').addEventListener('change',ev=>{const f=ev.target.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{try{applyLayout(JSON.parse(fr.result));setDiag('Imported layout JSON.');}catch{setDiag('Invalid JSON.');}};fr.readAsText(f);});
 
 /* --------------------- Deck navigation --------------------- */
@@ -424,7 +500,9 @@ async function renderCardCanvas(){
 
   function drawBadge(el, value){const b=boundsInStage(el); const r=Math.min(b.w,b.h)/2; const cx=b.x+b.w/2, cy=b.y+b.h/2;
     ctx.save(); ctx.fillStyle='rgba(0,0,0,.35)'; ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle='#fff'; ctx.font='800 22px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='#fff';
+    ctx.font=`800 ${state.textSizes.badge||22}px ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(String(value??''), cx, cy+1); ctx.restore(); }
   drawBadge(bATK, fldATK.value||'1'); drawBadge(bHP, fldHP.value||'1'); drawBadge(bMOV, fldMOV.value||'1'); drawBadge(bCOST, fldCOST.value||'1');
 
@@ -506,8 +584,9 @@ q('#buildSheet').addEventListener('click', async ()=>{
 /* --------------------- Init --------------------- */
 (function init(){
   renderFields(); fitArtBox();
+  initTextSizeControls();            // NEW: initialize text size UI & apply to DOM
   (q('#selElement').value='name'); boundsForInspector();
-  setDiag('Classic layout v6.35 loaded (manual canvas renderer, queue → TTS).');
+  setDiag('Classic layout v6.36 loaded (text-size controls + queue → TTS).');
 })();
 </script>
 </body>
