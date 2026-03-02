@@ -101,11 +101,13 @@ button:hover {
   font-weight: bold;
   font-family: 'Cinzel', serif;
   box-shadow: 0 0 5px rgba(0,0,0,0.5);
-  position: absolute;
+  position: absolute;           /* allows positioning with top/left */
   display: flex;
   justify-content: center;
   align-items: center;
   text-align: center;
+  z-index: 0;                   /* make sure the circle sits behind text if needed */
+  pointer-events: none;         /* so clicks pass through the circle */
 }
 
 .stat-circle {
