@@ -90,6 +90,44 @@ button:hover {
   user-select: none;
 }
 
+/* ------------------------
+   Cost / Stat Circles
+   ------------------------ */
+.cost-circle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  font-family: 'Cinzel', serif;
+  box-shadow: 0 0 5px rgba(0,0,0,0.5);
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.stat-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  font-family: 'Cinzel', serif;
+  box-shadow: 0 0 3px rgba(0,0,0,0.5);
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+/* Example default colors for future use */
+.stat-circle.atk { background-color: #c84c4c; }  /* ATK red */
+.stat-circle.hp  { background-color: #4cc88b; }  /* HP green */
+.stat-circle.spd { background-color: #4c80c8; }  /* Speed blue */
+
 #editorPanel {
   width: 250px;
   padding: 10px;
