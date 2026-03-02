@@ -1,7 +1,11 @@
+// ------------------------
+// Card Renderer
+// ------------------------
 function renderCard(card) {
   const canvas = document.getElementById("cardCanvas");
   canvas.innerHTML = "";
 
+  // Template positions for card fields
   template = {
     name: { x: 412, y: 80, fontSize: 48 },
     cost: { x: 80, y: 80, fontSize: 36 },
@@ -11,16 +15,20 @@ function renderCard(card) {
     abilities: { x: 412, y: 800, fontSize: 24 }
   };
 
+  // Add card fields
   addField("name", card.Name);
-  addCostField(card); // UPDATED: use custom cost rendering
-  addField("atk", "⚔ " + card.ATK);
-  addField("hp", "❤ " + card.HP);
-  addField("spd", "➤ " + card.Speed);
+  addCostField(card);        // Cost as colored circle
+  addStatField("atk", "⚔ " + card.ATK, "atk");
+  addStatField("hp", "❤ " + card.HP, "hp");
+  addStatField("spd", "➤ " + card.Speed, "spd");
   addField("abilities", card.Abilities);
 
   applyFactionStyle(card.Faction);
 }
 
+// ------------------------
+// Generic text field (name, abilities, etc.)
+// ------------------------
 function addField(id, text) {
   const field = template[id];
 
@@ -42,38 +50,89 @@ function addField(id, text) {
   document.getElementById("cardCanvas").appendChild(div);
 }
 
-// ---------------------------
-// NEW FUNCTION: renders cost as circle with faction color
-// ---------------------------
+// ------------------------
+// Cost circle rendering
+// ------------------------
 function addCostField(card) {
   const field = template["cost"];
-  const div = document.createElement("div");
-  div.className = "cost-circle";
 
-  // Set faction color or gradient for multi-faction
+  const wrapper = document.createElement("div");
+  wrapper.style.position = "absolute";
+  wrapper.style.left = field.x + "px";
+  wrapper.style.top = field.y + "px";
+  wrapper.style.width = "50px";
+  wrapper.style.height = "50px";
+
+  // Circle behind number
+  const circle = document.createElement("div");
+  circle.className = "cost-circle";
+
   const factionColors = { Flame: "orange", Blood: "red", Ash: "gray" };
-
   if (card.Faction.includes("/")) {
     const colors = card.Faction.split("/").map(f => factionColors[f]);
-    div.style.background = `linear-gradient(45deg, ${colors.join(",")})`;
+    circle.style.background = `linear-gradient(45deg, ${colors.join(",")})`;
   } else {
-    div.style.background = factionColors[card.Faction] || "black";
+    circle.style.background = factionColors[card.Faction] || "black";
   }
 
-  // Position and font
-  div.style.left = field.x + "px";
-  div.style.top = field.y + "px";
-  div.style.fontSize = field.fontSize + "px";
-  div.style.position = "absolute";
-  div.style.display = "flex";
-  div.style.justifyContent = "center";
-  div.style.alignItems = "center";
+  // Number on top
+  const number = document.createElement("div");
+  number.style.position = "absolute";
+  number.style.width = "100%";
+  number.style.height = "100%";
+  number.style.display = "flex";
+  number.style.justifyContent = "center";
+  number.style.alignItems = "center";
+  number.style.fontFamily = 'Cinzel, serif';
+  number.style.fontWeight = "bold";
+  number.style.color = "white";
+  number.style.fontSize = "20px";
+  number.innerText = card.Cost;
 
-  div.innerText = card.Cost;
+  wrapper.appendChild(circle);
+  wrapper.appendChild(number);
 
-  document.getElementById("cardCanvas").appendChild(div);
+  document.getElementById("cardCanvas").appendChild(wrapper);
 }
 
+// ------------------------
+// ATK / HP / Speed optional circles
+// ------------------------
+function addStatField(id, text, statType) {
+  const field = template[id];
+
+  const wrapper = document.createElement("div");
+  wrapper.style.position = "absolute";
+  wrapper.style.left = field.x + "px";
+  wrapper.style.top = field.y + "px";
+  wrapper.style.width = "40px";
+  wrapper.style.height = "40px";
+
+  const circle = document.createElement("div");
+  circle.className = "stat-circle " + statType;
+
+  const number = document.createElement("div");
+  number.style.position = "absolute";
+  number.style.width = "100%";
+  number.style.height = "100%";
+  number.style.display = "flex";
+  number.style.justifyContent = "center";
+  number.style.alignItems = "center";
+  number.style.fontFamily = 'Cinzel, serif';
+  number.style.fontWeight = "bold";
+  number.style.color = "white";
+  number.style.fontSize = "16px";
+  number.innerText = text.replace(/[^0-9]/g, ""); // just number inside circle
+
+  wrapper.appendChild(circle);
+  wrapper.appendChild(number);
+
+  document.getElementById("cardCanvas").appendChild(wrapper);
+}
+
+// ------------------------
+// Faction glow around card
+// ------------------------
 function applyFactionStyle(faction) {
   const canvas = document.getElementById("cardCanvas");
 
