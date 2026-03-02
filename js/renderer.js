@@ -12,7 +12,7 @@ function renderCard(card) {
   };
 
   addField("name", card.Name);
-  addField("cost", card.Cost);
+  addCostField(card); // UPDATED: use custom cost rendering
   addField("atk", "⚔ " + card.ATK);
   addField("hp", "❤ " + card.HP);
   addField("spd", "➤ " + card.Speed);
@@ -38,6 +38,38 @@ function addField(id, text) {
   div.addEventListener("click", () => openFieldEditor(id));
 
   makeDraggable(div, id);
+
+  document.getElementById("cardCanvas").appendChild(div);
+}
+
+// ---------------------------
+// NEW FUNCTION: renders cost as circle with faction color
+// ---------------------------
+function addCostField(card) {
+  const field = template["cost"];
+  const div = document.createElement("div");
+  div.className = "cost-circle";
+
+  // Set faction color or gradient for multi-faction
+  const factionColors = { Flame: "orange", Blood: "red", Ash: "gray" };
+
+  if (card.Faction.includes("/")) {
+    const colors = card.Faction.split("/").map(f => factionColors[f]);
+    div.style.background = `linear-gradient(45deg, ${colors.join(",")})`;
+  } else {
+    div.style.background = factionColors[card.Faction] || "black";
+  }
+
+  // Position and font
+  div.style.left = field.x + "px";
+  div.style.top = field.y + "px";
+  div.style.fontSize = field.fontSize + "px";
+  div.style.position = "absolute";
+  div.style.display = "flex";
+  div.style.justifyContent = "center";
+  div.style.alignItems = "center";
+
+  div.innerText = card.Cost;
 
   document.getElementById("cardCanvas").appendChild(div);
 }
