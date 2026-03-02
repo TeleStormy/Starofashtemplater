@@ -1,14 +1,50 @@
-<section id="workspace">
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Star of Ash — Card Builder</title>
 
-  <aside id="cardListPanel">
-    <input type="text" id="cardSearch" placeholder="Search cards..." />
-    <div id="cardList"></div>
-  </aside>
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
 
-  <div id="cardPreview">
-    <div id="cardCanvas"></div>
-  </div>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
 
-  <div id="editorPanel"></div>
+<body>
 
-</section>
+  <header>
+    <h1>Star of Ash — Card Builder</h1>
+  </header>
+
+  <section id="controls">
+    <input type="file" id="csvUpload" accept=".csv" />
+    <button id="toggleSnap">Snap: ON</button>
+    <button id="exportCard">Export Card</button>
+  </section>
+
+  <section id="workspace">
+
+    <aside id="cardListPanel">
+      <input type="text" id="cardSearch" placeholder="Search cards..." />
+      <div id="cardList"></div>
+    </aside>
+
+    <div id="cardPreview">
+      <div id="cardCanvas"></div>
+    </div>
+
+    <div id="editorPanel"></div>
+
+  </section>
+
+  <!-- PapaParse -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <script src="js/app.js"></script>
+  <script src="js/csv.js"></script>
+  <script src="js/templateEditor.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/export.js"></script>
+
+</body>
+</html>
