@@ -1,3 +1,35 @@
+body {
+  background: #0f0f0f;
+  color: #ddd;
+  margin: 0;
+  font-family: 'Cinzel', serif;
+}
+
+header {
+  text-align: center;
+  padding: 20px;
+  letter-spacing: 2px;
+}
+
+#controls {
+  text-align: center;
+  padding: 10px;
+  border-bottom: 1px solid #222;
+}
+
+button {
+  margin: 5px;
+  padding: 6px 12px;
+  background: #1c1c1c;
+  border: 1px solid #333;
+  color: #ddd;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #2a2a2a;
+}
+
 #workspace {
   display: flex;
   gap: 20px;
@@ -9,8 +41,8 @@
   background: #141414;
   padding: 10px;
   border-right: 1px solid #222;
-  overflow-y: auto;
   height: 1125px;
+  overflow-y: auto;
 }
 
 #cardListPanel input {
@@ -35,4 +67,32 @@
 .card-item.active {
   background: #2a2a2a;
   border-left: 3px solid #888;
+}
+
+#cardPreview {
+  width: 825px;
+  height: 1125px;
+  position: relative;
+}
+
+#cardCanvas {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(#111, #1a1a1a);
+  border: 4px solid #222;
+  position: relative;
+  box-shadow: 0 0 40px rgba(150,150,150,0.3);
+}
+
+.card-field {
+  position: absolute;
+  cursor: move;
+  user-select: none;
+}
+
+#editorPanel {
+  width: 250px;
+  padding: 10px;
+  background: #141414;
+  border-left: 1px solid #222;
 }
